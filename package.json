@@ -10,6 +10,7 @@
     "test": "vitest run",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "load-test": "node scripts/load-test.mjs",
+    "test:e2e": "playwright test",
     "db:seed": "node prisma/seed.mjs"
   },
   "prisma": {
@@ -27,6 +28,7 @@
     "zod": "^4.5.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

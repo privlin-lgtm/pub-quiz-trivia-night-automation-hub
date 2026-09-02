@@ -53,6 +53,7 @@ Session states: `LOBBY → QUESTION_ACTIVE → REVEAL → (next question or ENDE
 ```bash
 npm run test              # unit tests (scoring, scoreboard, session state machine)
 npm run test:integration  # full session-lifecycle tests against a real (throwaway) SQLite DB
+npm run test:e2e          # Playwright: real browser, host + team tabs, full UI flow
 npx tsc --noEmit          # typecheck
 npm run lint
 ```
@@ -62,6 +63,13 @@ and drives the actual route handlers — create pack → create session → join
 answer → auto-score → reveal → host override → advance through every question
 to `ENDED` — plus edge cases like duplicate team names and answering before
 the quiz has started.
+
+`test:e2e` runs against `prisma/e2e.db` (own throwaway DB, migrated fresh
+by a Playwright global setup) and a dedicated `next dev` on port 4517 that
+Playwright starts itself. It drives two real browser contexts (host + team)
+through the actual UI: seed a pack via API, open the pack editor, click
+"Start live session", join as a team on `/play`, submit an answer, reveal,
+and assert the scoreboard updates on both sides.
 
 ### Load test
 

@@ -39,6 +39,13 @@ yarn-error.log*
 /prisma/dev.db-journal
 /prisma/test.db
 /prisma/test.db-journal
+/prisma/e2e.db
+/prisma/e2e.db-journal
+
+# playwright
+/playwright-report
+/test-results
+/blob-report
 
 # vercel
 .vercel
