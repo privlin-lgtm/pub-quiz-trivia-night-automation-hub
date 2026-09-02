@@ -51,10 +51,17 @@ Session states: `LOBBY → QUESTION_ACTIVE → REVEAL → (next question or ENDE
 ## Testing
 
 ```bash
-npm run test        # unit tests (scoring, scoreboard, session state machine)
-npx tsc --noEmit     # typecheck
+npm run test              # unit tests (scoring, scoreboard, session state machine)
+npm run test:integration  # full session-lifecycle tests against a real (throwaway) SQLite DB
+npx tsc --noEmit          # typecheck
 npm run lint
 ```
+
+`test:integration` spins up `prisma/test.db` (migrated fresh each run, gitignored)
+and drives the actual route handlers — create pack → create session → join →
+answer → auto-score → reveal → host override → advance through every question
+to `ENDED` — plus edge cases like duplicate team names and answering before
+the quiz has started.
 
 ## Project docs
 
