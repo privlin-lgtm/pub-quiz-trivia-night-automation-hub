@@ -1,0 +1,68 @@
+import { createElement, type ReactElement } from "react";
+import { NextRequest, NextResponse } from "next/server";
+import { renderToStream, type DocumentProps } from "@react-pdf/renderer";
+import { db } from "@/lib/db";
+import {
+  AnswerSheetDocument,
+  PresenterScriptDocument,
+  QuestionSheetDocument,
+} from "@/lib/pdf/documents";
+import type { PackWithRounds } from "@/lib/session-state";
+
+const DOCUMENTS = {
+  questions: { Component: QuestionSheetDocument, suffix: "questions" },
+  answers: { Component: AnswerSheetDocument, suffix: "answers" },
+  script: { Component: PresenterScriptDocument, suffix: "presenter-script" },
+} as const;
+
+type DocType = keyof typeof DOCUMENTS;
+
+function isDocType(value: string | null): value is DocType {
+  return !!value && value in DOCUMENTS;
+}
+
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const url = new URL(req.url);
+  const type = url.searchParams.get("type");
+
+  if (!isDocType(type)) {
+    return NextResponse.json(
+      { error: "type must be one of: questions, answers, script" },
+      { status: 400 }
+    );
+  }
+
+  const pack = (await db.quizPack.findUnique({
+    where: { id },
+    include: {
+      rounds: {
+        orderBy: { index: "asc" },
+        include: { questions: { orderBy: { index: "asc" } } },
+      },
+    },
+  })) as PackWithRounds | null;
+
+  if (!pack) {
+    return NextResponse.json({ error: "Pack not found" }, { status: 404 });
+  }
+
+  const { Component, suffix } = DOCUMENTS[type];
+  const element = createElement(Component, { pack }) as unknown as ReactElement<DocumentProps>;
+  const stream = await renderToStream(element);
+
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+  const buffer = Buffer.concat(chunks);
+
+  const filename = `${pack.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-${suffix}.pdf`;
+
+  return new NextResponse(new Uint8Array(buffer), {
+    headers: {
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename="${filename}"`,
+    },
+  });
+}

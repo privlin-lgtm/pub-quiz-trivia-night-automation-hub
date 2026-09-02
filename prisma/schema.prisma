@@ -1,0 +1,82 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model QuizPack {
+  id        String   @id @default(cuid())
+  title     String
+  prompt    String
+  createdAt DateTime @default(now())
+  rounds    Round[]
+  sessions  Session[]
+}
+
+model Round {
+  id        String     @id @default(cuid())
+  pack      QuizPack   @relation(fields: [packId], references: [id], onDelete: Cascade)
+  packId    String
+  index     Int
+  title     String
+  category  String
+  questions Question[]
+
+  @@unique([packId, index])
+}
+
+model Question {
+  id       String @id @default(cuid())
+  round    Round  @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  roundId  String
+  index    Int
+  text     String
+  answer   String
+  points   Int    @default(1)
+
+  @@unique([roundId, index])
+}
+
+model Session {
+  id                   String   @id @default(cuid())
+  pack                 QuizPack @relation(fields: [packId], references: [id], onDelete: Cascade)
+  packId               String
+  code                 String   @unique
+  status               String   @default("LOBBY") // LOBBY | QUESTION_ACTIVE | REVEAL | ENDED
+  currentRoundIndex    Int      @default(0)
+  currentQuestionIndex Int      @default(0)
+  createdAt            DateTime @default(now())
+  teams                Team[]
+  answers              Answer[]
+}
+
+model Team {
+  id        String   @id @default(cuid())
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId String
+  name      String
+  token     String   @unique
+  createdAt DateTime @default(now())
+  answers   Answer[]
+
+  @@unique([sessionId, name])
+}
+
+model Answer {
+  id            String   @id @default(cuid())
+  session       Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId     String
+  team          Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  teamId        String
+  roundIndex    Int
+  questionIndex Int
+  text          String
+  isCorrect     Boolean?
+  pointsAwarded Int      @default(0)
+  submittedAt   DateTime @default(now())
+
+  @@unique([teamId, roundIndex, questionIndex])
+}

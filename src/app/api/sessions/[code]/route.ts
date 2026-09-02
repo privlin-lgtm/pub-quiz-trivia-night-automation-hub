@@ -1,0 +1,110 @@
+import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/lib/db";
+import {
+  SESSION_STATUS,
+  getCurrentQuestion,
+  getCurrentRound,
+  packWithRoundsArgs,
+  type PackWithRounds,
+} from "@/lib/session-state";
+import { computeScoreboard } from "@/lib/scoreboard";
+
+async function loadSession(code: string) {
+  const session = await db.session.findUnique({
+    where: { code: code.toUpperCase() },
+    include: { teams: true, answers: true },
+  });
+  if (!session) return null;
+  const pack = (await db.quizPack.findUnique({
+    where: { id: session.packId },
+    ...packWithRoundsArgs,
+  })) as PackWithRounds | null;
+  if (!pack) return null;
+  return { session, pack };
+}
+
+export async function GET(req: NextRequest, { params }: { params: Promise<{ code: string }> }) {
+  const { code } = await params;
+  const loaded = await loadSession(code);
+  if (!loaded) {
+    return NextResponse.json({ error: "Session not found" }, { status: 404 });
+  }
+  const { session, pack } = loaded;
+
+  const url = new URL(req.url);
+  const asHost = url.searchParams.get("as") === "host";
+  const token = url.searchParams.get("token");
+
+  let team = null;
+  if (!asHost) {
+    if (!token) {
+      return NextResponse.json({ error: "Missing team token" }, { status: 401 });
+    }
+    team = session.teams.find((t) => t.token === token) ?? null;
+    if (!team) {
+      return NextResponse.json({ error: "Invalid team token" }, { status: 401 });
+    }
+  }
+
+  const round = getCurrentRound(pack, session.currentRoundIndex);
+  const question = getCurrentQuestion(pack, session.currentRoundIndex, session.currentQuestionIndex);
+  const revealAnswer = session.status === SESSION_STATUS.REVEAL || session.status === SESSION_STATUS.ENDED;
+
+  const currentQuestionAnswers = session.answers.filter(
+    (a) => a.roundIndex === session.currentRoundIndex && a.questionIndex === session.currentQuestionIndex
+  );
+
+  const base = {
+    code: session.code,
+    status: session.status,
+    packTitle: pack.title,
+    roundNumber: session.currentRoundIndex + 1,
+    totalRounds: pack.rounds.length,
+    questionNumber: session.currentQuestionIndex + 1,
+    totalQuestionsInRound: round?.questions.length ?? 0,
+    round: round ? { title: round.title, category: round.category } : null,
+    question: question
+      ? {
+          id: question.id,
+          text: question.text,
+          points: question.points,
+          answer: revealAnswer ? question.answer : null,
+        }
+      : null,
+    scoreboard: computeScoreboard(session.teams, session.answers),
+  };
+
+  if (asHost) {
+    return NextResponse.json({
+      ...base,
+      teams: session.teams.map((t) => {
+        const answer = currentQuestionAnswers.find((a) => a.teamId === t.id) ?? null;
+        return {
+          id: t.id,
+          name: t.name,
+          currentAnswer: answer
+            ? {
+                id: answer.id,
+                text: answer.text,
+                isCorrect: answer.isCorrect,
+                pointsAwarded: answer.pointsAwarded,
+              }
+            : null,
+        };
+      }),
+    });
+  }
+
+  const mine = currentQuestionAnswers.find((a) => a.teamId === team!.id) ?? null;
+  return NextResponse.json({
+    ...base,
+    teamName: team!.name,
+    myAnswer: mine
+      ? {
+          text: mine.text,
+          isCorrect: revealAnswer ? mine.isCorrect : null,
+          pointsAwarded: revealAnswer ? mine.pointsAwarded : null,
+        }
+      : null,
+  });
+}

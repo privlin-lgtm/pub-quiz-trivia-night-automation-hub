@@ -1,0 +1,76 @@
+import type Anthropic from "@anthropic-ai/sdk";
+import { getAnthropicClient } from "@/lib/anthropic";
+import { generatedPackSchema, type GeneratedPack } from "@/lib/quiz-schema";
+
+const MODEL = "claude-sonnet-5";
+
+const TOOL_NAME = "emit_quiz_pack";
+
+const quizPackJsonSchema: Anthropic.Tool.InputSchema = {
+  type: "object",
+  properties: {
+    title: { type: "string", description: "Short title for the whole quiz pack" },
+    rounds: {
+      type: "array",
+      minItems: 1,
+      items: {
+        type: "object",
+        properties: {
+          title: { type: "string", description: "e.g. 'Round 1'" },
+          category: { type: "string", description: "e.g. '19th-Century History'" },
+          questions: {
+            type: "array",
+            minItems: 1,
+            items: {
+              type: "object",
+              properties: {
+                text: { type: "string" },
+                answer: { type: "string" },
+                points: { type: "integer", minimum: 1, maximum: 10 },
+              },
+              required: ["text", "answer"],
+            },
+          },
+        },
+        required: ["title", "category", "questions"],
+      },
+    },
+  },
+  required: ["title", "rounds"],
+};
+
+export async function generateQuizPack(userPrompt: string): Promise<GeneratedPack> {
+  const anthropic = getAnthropicClient();
+
+  const message = await anthropic.messages.create({
+    model: MODEL,
+    max_tokens: 8000,
+    system:
+      "You are a pub quiz question setter. Given a request describing the desired " +
+      "rounds and topics, produce a complete, well-researched quiz pack. Each question " +
+      "must have a single unambiguous factual answer. Vary difficulty within each round " +
+      "from easy to hard. Do not repeat questions or trivia facts across rounds. Call the " +
+      `${TOOL_NAME} tool exactly once with the full pack.`,
+    tools: [
+      {
+        name: TOOL_NAME,
+        description: "Emit a complete generated quiz pack.",
+        input_schema: quizPackJsonSchema,
+      },
+    ],
+    tool_choice: { type: "tool", name: TOOL_NAME },
+    messages: [{ role: "user", content: userPrompt }],
+  });
+
+  const toolUse = message.content.find((block) => block.type === "tool_use");
+  if (!toolUse || toolUse.type !== "tool_use") {
+    throw new Error("Model did not return structured quiz data");
+  }
+
+  const parsed = generatedPackSchema.safeParse(toolUse.input);
+  if (!parsed.success) {
+    throw new Error(`Generated quiz pack failed validation: ${parsed.error.message}`);
+  }
+
+  return parsed.data;
+}
