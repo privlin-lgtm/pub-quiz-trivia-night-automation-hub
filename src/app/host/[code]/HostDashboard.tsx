@@ -4,37 +4,67 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Scoreboard } from "@/components/Scoreboard";
 import { StatusBadge } from "@/components/StatusBadge";
+import { readHostToken, writeHostToken } from "@/lib/host-session";
 import type { HostSessionState, HostTeam } from "@/lib/api-types";
 
 export function HostDashboard({ code }: { code: string }) {
+  const [hostToken, setHostToken] = useState<string | null>(null);
+  const [hydrated, setHydrated] = useState(false);
+  const [pastedToken, setPastedToken] = useState("");
   const [state, setState] = useState<HostSessionState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const refresh = useCallback(async () => {
-    const res = await fetch(`/api/sessions/${code}?as=host`);
-    const data = await res.json();
-    if (!res.ok) {
-      setError(data.error ?? "Could not load session");
-      return;
-    }
-    setError(null);
-    setState(data);
+  useEffect(() => {
+    // localStorage isn't available during SSR, so the real value can only be
+    // read after mount — reading it via a lazy useState initializer instead
+    // would make the client's first render diverge from the server-rendered
+    // HTML (a hydration mismatch). Deferring to an effect, gated by
+    // `hydrated`, keeps the first paint identical on server and client.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setHostToken(readHostToken(code));
+    setHydrated(true);
   }, [code]);
 
+  const refresh = useCallback(async () => {
+    if (!hostToken) return;
+    try {
+      const res = await fetch(`/api/sessions/${code}?as=host&hostToken=${encodeURIComponent(hostToken)}`);
+      const data = await res.json();
+      if (!res.ok) {
+        if (res.status === 401) {
+          setError("This browser's host key was rejected for this session.");
+          setHostToken(null);
+          return;
+        }
+        setError(data.error ?? "Could not load session");
+        return;
+      }
+      setError(null);
+      setState(data);
+    } catch {
+      setError("Lost connection to the session. Retrying…");
+    }
+  }, [code, hostToken]);
+
   useEffect(() => {
+    if (!hostToken) return;
+    // Standard fetch-on-mount-and-interval polling: refresh() sets state
+    // asynchronously after its own await, not synchronously in this body.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void refresh();
     const id = window.setInterval(() => void refresh(), 3000);
     return () => window.clearInterval(id);
-  }, [refresh]);
+  }, [refresh, hostToken]);
 
   async function advance(action: "start" | "reveal" | "next") {
+    if (!hostToken) return;
     setBusy(true);
     try {
       const res = await fetch(`/api/sessions/${code}/advance`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({ action, hostToken }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Could not advance");
@@ -47,19 +77,56 @@ export function HostDashboard({ code }: { code: string }) {
   }
 
   async function overrideAnswer(team: HostTeam, isCorrect: boolean) {
-    if (!team.currentAnswer || !state?.question) return;
+    if (!team.currentAnswer || !state?.question || !hostToken) return;
     await fetch(`/api/sessions/${code}/answers/${team.currentAnswer.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isCorrect, points: state.question.points }),
+      body: JSON.stringify({ isCorrect, points: state.question.points, hostToken }),
     });
     await refresh();
   }
 
-  if (!state && error) {
+  function submitPastedToken(event: React.FormEvent) {
+    event.preventDefault();
+    const value = pastedToken.trim();
+    if (!value) return;
+    writeHostToken(code, value);
+    setHostToken(value);
+    setError(null);
+  }
+
+  if (!hydrated) {
+    return <div className="min-h-full bg-stage" />;
+  }
+
+  if (!hostToken) {
     return (
       <div className="flex min-h-full items-center justify-center bg-stage px-5 text-stage-fg">
-        <p>{error}</p>
+        <div className="w-full max-w-sm">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gold">Host desk</p>
+          <h1 className="mt-2 text-2xl font-bold">Host key needed</h1>
+          <p className="mt-2 text-stage-muted">
+            This browser doesn&apos;t have host access for session {code}. If you started this
+            session here, try reopening it from the pack editor. Otherwise paste the host key
+            you were given when the session was created.
+          </p>
+          {error ? <p className="mt-3 text-sm text-red-300">{error}</p> : null}
+          <form onSubmit={submitPastedToken} className="mt-6 flex gap-2">
+            <input
+              value={pastedToken}
+              onChange={(e) => setPastedToken(e.target.value)}
+              placeholder="Host key"
+              className="h-12 flex-1 rounded-xl border border-white/15 bg-white px-3 text-sm text-stage outline-none focus:ring-2 focus:ring-gold"
+            />
+            <button
+              type="submit"
+              className="h-12 rounded-xl bg-gold px-4 text-sm font-semibold text-stage disabled:opacity-40"
+              disabled={!pastedToken.trim()}
+            >
+              Use key
+            </button>
+          </form>
+        </div>
       </div>
     );
   }
@@ -67,7 +134,7 @@ export function HostDashboard({ code }: { code: string }) {
   if (!state) {
     return (
       <div className="flex min-h-full items-center justify-center bg-stage text-stage-muted">
-        Loading host desk…
+        {error ?? "Loading host desk…"}
       </div>
     );
   }

@@ -8,3 +8,7 @@ export const generateTeamToken = customAlphabet(
   "abcdefghijklmnopqrstuvwxyz0123456789",
   24
 );
+export const generateHostToken = customAlphabet(
+  "abcdefghijklmnopqrstuvwxyz0123456789",
+  32
+);

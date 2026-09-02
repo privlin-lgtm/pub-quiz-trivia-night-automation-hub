@@ -105,9 +105,11 @@ async function runTeam(code, name, stopSignal) {
   }
 }
 
-async function runHost(code, stopSignal) {
+async function runHost(code, hostToken, stopSignal) {
   while (!stopSignal.stopped) {
-    const state = await timed("advance", "host-poll", () => api(`/api/sessions/${code}?as=host`));
+    const state = await timed("advance", "host-poll", () =>
+      api(`/api/sessions/${code}?as=host&hostToken=${encodeURIComponent(hostToken)}`)
+    );
 
     if (state.status === "ENDED") {
       stopSignal.stopped = true;
@@ -116,17 +118,26 @@ async function runHost(code, stopSignal) {
     if (state.status === "LOBBY") {
       await sleep(1500); // give teams a moment to join
       await timed("advance", "advance-start", () =>
-        api(`/api/sessions/${code}/advance`, { method: "POST", body: JSON.stringify({ action: "start" }) })
+        api(`/api/sessions/${code}/advance`, {
+          method: "POST",
+          body: JSON.stringify({ action: "start", hostToken }),
+        })
       );
     } else if (state.status === "QUESTION_ACTIVE") {
       await sleep(THINK_TIME_MS + 500);
       await timed("advance", "advance-reveal", () =>
-        api(`/api/sessions/${code}/advance`, { method: "POST", body: JSON.stringify({ action: "reveal" }) })
+        api(`/api/sessions/${code}/advance`, {
+          method: "POST",
+          body: JSON.stringify({ action: "reveal", hostToken }),
+        })
       );
     } else if (state.status === "REVEAL") {
       await sleep(REVEAL_PAUSE_MS);
       await timed("advance", "advance-next", () =>
-        api(`/api/sessions/${code}/advance`, { method: "POST", body: JSON.stringify({ action: "next" }) })
+        api(`/api/sessions/${code}/advance`, {
+          method: "POST",
+          body: JSON.stringify({ action: "next", hostToken }),
+        })
       );
     }
     await sleep(300);
@@ -141,7 +152,7 @@ async function main() {
   console.log(`Load test: ${TEAM_COUNT} teams against ${BASE}`);
 
   const { pack } = await api("/api/packs/seed", { method: "POST" });
-  const { session } = await api("/api/sessions", {
+  const { session, hostToken } = await api("/api/sessions", {
     method: "POST",
     body: JSON.stringify({ packId: pack.id }),
   });
@@ -156,7 +167,7 @@ async function main() {
     )
   );
 
-  await Promise.all([runHost(session.code, stopSignal), ...teamPromises]);
+  await Promise.all([runHost(session.code, hostToken, stopSignal), ...teamPromises]);
 
   const durationS = ((performance.now() - start) / 1000).toFixed(1);
 

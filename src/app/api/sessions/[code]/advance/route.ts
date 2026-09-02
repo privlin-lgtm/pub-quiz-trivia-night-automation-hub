@@ -2,10 +2,24 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { SESSION_STATUS, computeNextPosition, packWithRoundsArgs, type PackWithRounds } from "@/lib/session-state";
+import { isValidHostToken } from "@/lib/host-auth";
 
 const advanceSchema = z.object({
   action: z.enum(["start", "reveal", "next"]),
+  hostToken: z.string().min(1),
 });
+
+// Never include hostToken in a response body — this is the public shape of
+// "the session" that goes back to the client after every transition.
+const publicSessionSelect = {
+  id: true,
+  packId: true,
+  code: true,
+  status: true,
+  currentRoundIndex: true,
+  currentQuestionIndex: true,
+  createdAt: true,
+} as const;
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
@@ -19,6 +33,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   if (!session) {
     return NextResponse.json({ error: "Session not found" }, { status: 404 });
   }
+  if (!isValidHostToken(session.hostToken, parsed.data.hostToken)) {
+    return NextResponse.json({ error: "Invalid host key" }, { status: 401 });
+  }
 
   const pack = (await db.quizPack.findUnique({
     where: { id: session.packId },
@@ -30,26 +47,43 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
 
   const { action } = parsed.data;
 
+  // Every transition below is a conditional update: the `where` clause pins
+  // the exact state this request read, so if two requests race (a
+  // double-click, a retried request on flaky venue wifi) only the first to
+  // commit actually changes anything — the loser's `count` comes back 0
+  // instead of silently double-advancing the quiz.
+
   if (action === "start") {
     if (session.status !== SESSION_STATUS.LOBBY) {
       return NextResponse.json({ error: "Quiz already started" }, { status: 409 });
     }
-    const updated = await db.session.update({
-      where: { id: session.id },
+    const { count } = await db.session.updateMany({
+      where: { id: session.id, status: SESSION_STATUS.LOBBY },
       data: { status: SESSION_STATUS.QUESTION_ACTIVE, currentRoundIndex: 0, currentQuestionIndex: 0 },
     });
-    return NextResponse.json({ session: updated });
+    if (count === 0) {
+      return NextResponse.json({ error: "Quiz already started" }, { status: 409 });
+    }
+    return NextResponse.json({ session: await db.session.findUniqueOrThrow({ where: { id: session.id }, select: publicSessionSelect }) });
   }
 
   if (action === "reveal") {
     if (session.status !== SESSION_STATUS.QUESTION_ACTIVE) {
       return NextResponse.json({ error: "No active question to reveal" }, { status: 409 });
     }
-    const updated = await db.session.update({
-      where: { id: session.id },
+    const { count } = await db.session.updateMany({
+      where: {
+        id: session.id,
+        status: SESSION_STATUS.QUESTION_ACTIVE,
+        currentRoundIndex: session.currentRoundIndex,
+        currentQuestionIndex: session.currentQuestionIndex,
+      },
       data: { status: SESSION_STATUS.REVEAL },
     });
-    return NextResponse.json({ session: updated });
+    if (count === 0) {
+      return NextResponse.json({ error: "No active question to reveal" }, { status: 409 });
+    }
+    return NextResponse.json({ session: await db.session.findUniqueOrThrow({ where: { id: session.id }, select: publicSessionSelect }) });
   }
 
   // action === "next"
@@ -57,8 +91,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     return NextResponse.json({ error: "Reveal the current answer before advancing" }, { status: 409 });
   }
   const next = computeNextPosition(pack, session.currentRoundIndex, session.currentQuestionIndex);
-  const updated = await db.session.update({
-    where: { id: session.id },
+  const { count } = await db.session.updateMany({
+    where: {
+      id: session.id,
+      status: SESSION_STATUS.REVEAL,
+      currentRoundIndex: session.currentRoundIndex,
+      currentQuestionIndex: session.currentQuestionIndex,
+    },
     data: next
       ? {
           status: SESSION_STATUS.QUESTION_ACTIVE,
@@ -67,5 +106,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
         }
       : { status: SESSION_STATUS.ENDED },
   });
-  return NextResponse.json({ session: updated });
+  if (count === 0) {
+    return NextResponse.json({ error: "Reveal the current answer before advancing" }, { status: 409 });
+  }
+  return NextResponse.json({ session: await db.session.findUniqueOrThrow({ where: { id: session.id }, select: publicSessionSelect }) });
 }

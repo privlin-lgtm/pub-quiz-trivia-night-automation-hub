@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { generateSessionCode } from "@/lib/codes";
+import { generateHostToken, generateSessionCode } from "@/lib/codes";
 import { z } from "zod";
 
 const createSessionSchema = z.object({
@@ -32,9 +32,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Could not allocate a session code" }, { status: 500 });
   }
 
+  const hostToken = generateHostToken();
   const session = await db.session.create({
-    data: { packId: pack.id, code },
+    data: { packId: pack.id, code, hostToken },
   });
 
-  return NextResponse.json({ session }, { status: 201 });
+  // hostToken is returned once, here, and never included in any other
+  // session payload (see getSessionState) — it's the host's only proof of
+  // authority over this session, so it must not leak to team-facing views.
+  return NextResponse.json(
+    {
+      session: {
+        id: session.id,
+        packId: session.packId,
+        code: session.code,
+        status: session.status,
+        createdAt: session.createdAt,
+      },
+      hostToken,
+    },
+    { status: 201 }
+  );
 }

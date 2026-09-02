@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { isValidHostToken } from "@/lib/host-auth";
 
 const overrideSchema = z.object({
   isCorrect: z.boolean(),
   points: z.number().int().min(0).max(10),
+  hostToken: z.string().min(1),
 });
 
 export async function PATCH(
@@ -22,6 +24,9 @@ export async function PATCH(
   if (!session) {
     return NextResponse.json({ error: "Session not found" }, { status: 404 });
   }
+  if (!isValidHostToken(session.hostToken, parsed.data.hostToken)) {
+    return NextResponse.json({ error: "Invalid host key" }, { status: 401 });
+  }
 
   const answer = await db.answer.findUnique({ where: { id: answerId } });
   if (!answer || answer.sessionId !== session.id) {
@@ -36,5 +41,12 @@ export async function PATCH(
     },
   });
 
-  return NextResponse.json({ answer: updated });
+  return NextResponse.json({
+    answer: {
+      id: updated.id,
+      text: updated.text,
+      isCorrect: updated.isCorrect,
+      pointsAwarded: updated.pointsAwarded,
+    },
+  });
 }

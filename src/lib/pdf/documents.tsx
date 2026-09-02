@@ -141,7 +141,7 @@ export function PresenterScriptDocument({ pack }: { pack: PackWithRounds }) {
       <Page size="A4" style={styles.page} wrap>
         <Header pack={pack} kicker="Presenter script" />
         <Text style={styles.cue}>
-          [Welcome everyone, introduce tonight's quiz, and remind teams how scoring works.]
+          [Welcome everyone, introduce tonight’s quiz, and remind teams how scoring works.]
         </Text>
         {pack.rounds.map((round) => (
           <View key={round.id} wrap={false}>

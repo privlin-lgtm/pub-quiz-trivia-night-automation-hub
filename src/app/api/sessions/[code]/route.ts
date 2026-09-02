@@ -8,6 +8,7 @@ import {
   type PackWithRounds,
 } from "@/lib/session-state";
 import { computeScoreboard } from "@/lib/scoreboard";
+import { isValidHostToken } from "@/lib/host-auth";
 
 async function loadSession(code: string) {
   const session = await db.session.findUnique({
@@ -36,7 +37,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ code
   const token = url.searchParams.get("token");
 
   let team = null;
-  if (!asHost) {
+  if (asHost) {
+    const hostToken = url.searchParams.get("hostToken");
+    if (!isValidHostToken(session.hostToken, hostToken)) {
+      return NextResponse.json({ error: "Invalid host key" }, { status: 401 });
+    }
+  } else {
     if (!token) {
       return NextResponse.json({ error: "Missing team token" }, { status: 401 });
     }

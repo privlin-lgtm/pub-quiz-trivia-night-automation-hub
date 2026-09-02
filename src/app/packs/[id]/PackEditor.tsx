@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Pack, Question } from "@/lib/api-types";
+import { writeHostToken } from "@/lib/host-session";
 
 type Draft = Pick<Question, "text" | "answer" | "points">;
 
@@ -68,6 +69,7 @@ export function PackEditor({ pack }: { pack: Pack }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Could not start session");
+      writeHostToken(data.session.code, data.hostToken);
       router.push(`/host/${data.session.code}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not start session");

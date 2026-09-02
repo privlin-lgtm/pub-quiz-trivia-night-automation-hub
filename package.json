@@ -11,10 +11,10 @@
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "load-test": "node scripts/load-test.mjs",
     "test:e2e": "playwright test",
-    "db:seed": "node prisma/seed.mjs"
+    "db:seed": "tsx prisma/seed.ts"
   },
   "prisma": {
-    "seed": "node prisma/seed.mjs"
+    "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.123.0",
@@ -36,6 +36,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.4",
     "tailwindcss": "^4",
+    "tsx": "^4.23.13",
     "typescript": "^5",
     "vitest": "^4.1.11"
   }

@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 export async function GET() {
   const packs = await db.quizPack.findMany({
     orderBy: { createdAt: "desc" },
+    take: 100, // bound worst-case query/response cost as packs accumulate
     include: { rounds: { include: { questions: true } } },
   });
 

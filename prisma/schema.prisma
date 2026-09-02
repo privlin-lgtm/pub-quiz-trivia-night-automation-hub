@@ -45,6 +45,7 @@ model Session {
   pack                 QuizPack @relation(fields: [packId], references: [id], onDelete: Cascade)
   packId               String
   code                 String   @unique
+  hostToken            String   @unique
   status               String   @default("LOBBY") // LOBBY | QUESTION_ACTIVE | REVEAL | ENDED
   currentRoundIndex    Int      @default(0)
   currentQuestionIndex Int      @default(0)

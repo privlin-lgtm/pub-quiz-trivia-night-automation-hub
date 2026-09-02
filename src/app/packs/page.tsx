@@ -7,6 +7,7 @@ export const dynamic = "force-dynamic";
 export default async function PacksPage() {
   const packs = await db.quizPack.findMany({
     orderBy: { createdAt: "desc" },
+    take: 100, // bound worst-case query/render cost as packs accumulate
     include: { rounds: { include: { questions: true } } },
   });
 

@@ -22,7 +22,13 @@ export function TeamPortal() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    // localStorage isn't available during SSR, so the real value can only be
+    // read after mount — reading it via a lazy useState initializer instead
+    // would make the client's first render diverge from the server-rendered
+    // HTML (a hydration mismatch). Deferring to an effect, gated by
+    // `hydrated`, keeps the first paint identical on server and client.
     const existing = readStoredTeam();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setStored(existing);
     if (existing) {
       setCode(existing.code);
@@ -32,26 +38,33 @@ export function TeamPortal() {
   }, []);
 
   const refresh = useCallback(async (team: StoredTeam) => {
-    const res = await fetch(`/api/sessions/${team.code}?token=${encodeURIComponent(team.token)}`);
-    const data = await res.json();
-    if (!res.ok) {
-      if (res.status === 401) {
-        clearStoredTeam();
-        setStored(null);
-        setState(null);
+    try {
+      const res = await fetch(`/api/sessions/${team.code}?token=${encodeURIComponent(team.token)}`);
+      const data = await res.json();
+      if (!res.ok) {
+        if (res.status === 401) {
+          clearStoredTeam();
+          setStored(null);
+          setState(null);
+        }
+        setError(data.error ?? "Could not load session");
+        return;
       }
-      setError(data.error ?? "Could not load session");
-      return;
-    }
-    setError(null);
-    setState(data);
-    if (data.myAnswer?.text && data.status !== "QUESTION_ACTIVE") {
-      setAnswer(data.myAnswer.text);
+      setError(null);
+      setState(data);
+      if (data.myAnswer?.text && data.status !== "QUESTION_ACTIVE") {
+        setAnswer(data.myAnswer.text);
+      }
+    } catch {
+      setError("Lost connection to the session. Retrying…");
     }
   }, []);
 
   useEffect(() => {
     if (!stored) return;
+    // Standard fetch-on-mount-and-interval polling: refresh() sets state
+    // asynchronously after its own await, not synchronously in this body.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void refresh(stored);
     const id = window.setInterval(() => void refresh(stored), 3000);
     return () => window.clearInterval(id);

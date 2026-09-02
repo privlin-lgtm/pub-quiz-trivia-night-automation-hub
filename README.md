@@ -37,16 +37,45 @@ Claude. There's also a CLI seed script: `npm run db:seed`.
    (`PATCH /api/questions/[id]`) and links to PDF exports
    (`GET /api/packs/[id]/pdf?type=questions|answers|script`).
 3. **Host** — `POST /api/sessions` creates a live session with a short join
-   code. The host dashboard polls `GET /api/sessions/[code]?as=host` and
-   drives the state machine via `POST /api/sessions/[code]/advance`
-   (`start` → `reveal` → `next`).
+   code **and a separate, unguessable host key** (returned once, stored in
+   the host's browser). The host dashboard polls
+   `GET /api/sessions/[code]?as=host&hostToken=...` and drives the state
+   machine via `POST /api/sessions/[code]/advance` (`start` → `reveal` →
+   `next`), both requiring that key.
 4. **Play** — Teams join with `POST /api/sessions/[code]/join` (returns a
    token), then poll `GET /api/sessions/[code]?token=...` and submit answers
    via `POST /api/sessions/[code]/answers`. Answers are auto-scored by
    normalized exact match; the host can override via
-   `PATCH /api/sessions/[code]/answers/[answerId]`.
+   `PATCH /api/sessions/[code]/answers/[answerId]` (also host-key gated).
 
 Session states: `LOBBY → QUESTION_ACTIVE → REVEAL → (next question or ENDED)`.
+Every state transition is an atomic conditional update (`updateMany` guarded
+by the exact state it read), so two concurrent advance calls — a double-tap,
+a retried request on flaky venue wifi — can't both apply; the loser gets a
+409 instead of silently skipping a question.
+
+## Security notes
+
+- **Join code vs. host key**: the join code is handed to every team by
+  design, so it can't double as proof of host authority. Session creation
+  also returns a separate host key, required on every session-control
+  endpoint (`advance`, the answer-score override, and the host view) and
+  compared with a constant-time check (`src/lib/host-auth.ts`). The host
+  dashboard stores it in `localStorage`; if that's lost (different device,
+  cleared storage), `/host/[code]` offers a "paste your host key" recovery
+  form rather than a hard lockout.
+- **Rate limiting**: `POST /api/packs/generate` (spends real Anthropic API
+  credit) and `POST /api/packs/seed` are throttled per-IP
+  (`src/lib/rate-limit.ts`) — an in-memory, single-instance limiter, which
+  matches this app's single-process deployment model.
+- **`ADMIN_TOKEN`** (optional, see `.env.example`): if set, `DELETE
+  /api/packs/[id]` requires it via an `x-admin-token` header. Nothing in the
+  UI calls this route today; it exists to be reachable safely once something
+  does. Unset by default for solo local dev.
+- These are proportionate to this app's actual trust model — one host
+  running one venue's quiz for a room of teams — not a multi-tenant SaaS
+  auth system. See [PROMPTS.md](./PROMPTS.md) history / commit messages for
+  the fuller threat-model reasoning.
 
 ## Testing
 
@@ -87,6 +116,25 @@ from a production build. Occasional `409 This question is no longer
 accepting answers` errors are expected — a team's submit racing the host's
 reveal — and the UI already surfaces them as a normal inline error rather
 than crashing.
+
+## CI
+
+`.github/workflows/ci.yml` runs typecheck, lint, unit tests, integration
+tests, and the Playwright E2E test on every push/PR — no secrets required
+(nothing in the suite calls the real Claude API).
+
+## Known limitations
+
+- SQLite is single-writer; fine at this app's target scale (tens of teams,
+  one session at a time) but would need to move to Postgres for a
+  multi-tenant deployment (low-effort swap via Prisma).
+- The in-memory rate limiter and the `hostToken`/`ADMIN_TOKEN` model assume
+  a single-process deployment and one operator, not a distributed multi-tenant
+  service.
+- `npm audit` reports 3 high-severity findings, all from the same
+  dev-time-only chain (`prisma` CLI → `@prisma/config` → `deepmerge-ts`, a
+  stack-exhaustion issue). Not reachable by the running app; no fix is
+  available yet without moving to an unstable `prisma@8` release candidate.
 
 ## Project docs
 
