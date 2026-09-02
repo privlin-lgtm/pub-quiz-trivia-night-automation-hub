@@ -63,6 +63,23 @@ answer → auto-score → reveal → host override → advance through every que
 to `ENDED` — plus edge cases like duplicate team names and answering before
 the quiz has started.
 
+### Load test
+
+```bash
+npm run dev                                   # in one terminal
+npm run load-test -- --teams=20 --base=http://localhost:3000   # in another
+```
+
+Simulates N teams joining a fresh session and polling every ~3s (like real
+phones) while a host driver advances the quiz to completion, printing
+latency stats for polls, answer submissions, and host advance calls. A
+20-team run against `next dev` (unoptimized, single SQLite writer) completed
+in ~70s with p95 poll latency around 2s; expect noticeably better numbers
+from a production build. Occasional `409 This question is no longer
+accepting answers` errors are expected — a team's submit racing the host's
+reveal — and the UI already surfaces them as a normal inline error rather
+than crashing.
+
 ## Project docs
 
 See [PROMPTS.md](./PROMPTS.md) for the phase-by-phase build playbook,
