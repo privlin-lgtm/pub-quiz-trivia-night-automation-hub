@@ -1,0 +1,303 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { Scoreboard } from "@/components/Scoreboard";
+import { StatusBadge } from "@/components/StatusBadge";
+import {
+  clearStoredTeam,
+  readStoredTeam,
+  writeStoredTeam,
+  type StoredTeam,
+} from "@/lib/team-session";
+import type { TeamSessionState } from "@/lib/api-types";
+
+export function TeamPortal() {
+  const [stored, setStored] = useState<StoredTeam | null>(null);
+  const [hydrated, setHydrated] = useState(false);
+  const [code, setCode] = useState("");
+  const [name, setName] = useState("");
+  const [answer, setAnswer] = useState("");
+  const [state, setState] = useState<TeamSessionState | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    const existing = readStoredTeam();
+    setStored(existing);
+    if (existing) {
+      setCode(existing.code);
+      setName(existing.teamName);
+    }
+    setHydrated(true);
+  }, []);
+
+  const refresh = useCallback(async (team: StoredTeam) => {
+    const res = await fetch(`/api/sessions/${team.code}?token=${encodeURIComponent(team.token)}`);
+    const data = await res.json();
+    if (!res.ok) {
+      if (res.status === 401) {
+        clearStoredTeam();
+        setStored(null);
+        setState(null);
+      }
+      setError(data.error ?? "Could not load session");
+      return;
+    }
+    setError(null);
+    setState(data);
+    if (data.myAnswer?.text && data.status !== "QUESTION_ACTIVE") {
+      setAnswer(data.myAnswer.text);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!stored) return;
+    void refresh(stored);
+    const id = window.setInterval(() => void refresh(stored), 3000);
+    return () => window.clearInterval(id);
+  }, [stored, refresh]);
+
+  async function join(event: React.FormEvent) {
+    event.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      const sessionCode = code.trim().toUpperCase();
+      const res = await fetch(`/api/sessions/${sessionCode}/join`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Could not join");
+      const team: StoredTeam = {
+        code: sessionCode,
+        token: data.token,
+        teamId: data.teamId,
+        teamName: data.teamName,
+      };
+      writeStoredTeam(team);
+      setStored(team);
+      setAnswer("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not join");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submitAnswer(event: React.FormEvent) {
+    event.preventDefault();
+    if (!stored) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/sessions/${stored.code}/answers`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: stored.token, text: answer.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Could not submit");
+      await refresh(stored);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not submit");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function leave() {
+    clearStoredTeam();
+    setStored(null);
+    setState(null);
+    setAnswer("");
+  }
+
+  if (!hydrated) {
+    return <div className="min-h-dvh bg-stage" />;
+  }
+
+  if (!stored) {
+    return (
+      <div className="flex min-h-dvh flex-col bg-stage px-5 py-8 text-stage-fg">
+        <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">Team portal</p>
+          <h1 className="mt-3 text-3xl font-bold tracking-tight">Join tonight’s quiz</h1>
+          <p className="mt-2 text-stage-muted">Ask the host for the 5-character code, then pick a team name.</p>
+
+          <form onSubmit={join} className="mt-8 space-y-5">
+            <label className="block">
+              <span className="text-sm font-medium">Session code</span>
+              <input
+                value={code}
+                onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z2-9]/g, "").slice(0, 5))}
+                inputMode="text"
+                autoCapitalize="characters"
+                autoCorrect="off"
+                spellCheck={false}
+                placeholder="AB3K7"
+                className="mt-2 h-14 w-full rounded-xl border border-white/15 bg-white px-4 font-mono text-2xl tracking-[0.28em] text-stage outline-none focus:ring-2 focus:ring-gold"
+                required
+              />
+            </label>
+            <label className="block">
+              <span className="text-sm font-medium">Team name</span>
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                maxLength={40}
+                placeholder="Quizards of Oz"
+                className="mt-2 h-14 w-full rounded-xl border border-white/15 bg-white px-4 text-lg text-stage outline-none focus:ring-2 focus:ring-gold"
+                required
+              />
+            </label>
+            {error ? <p className="rounded-lg bg-red-500/15 px-3 py-2 text-sm text-red-200">{error}</p> : null}
+            <button
+              type="submit"
+              disabled={busy || code.length < 5 || name.trim().length === 0}
+              className="h-14 w-full rounded-xl bg-gold text-lg font-semibold text-stage disabled:opacity-40"
+            >
+              {busy ? "Joining…" : "Join session"}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex min-h-dvh flex-col bg-stage px-5 py-6 text-stage-fg">
+      <header className="mx-auto flex w-full max-w-md items-start justify-between gap-3">
+        <div>
+          <p className="text-xs uppercase tracking-[0.18em] text-gold">{stored.teamName}</p>
+          <p className="mt-1 font-mono text-lg tracking-[0.16em]">{stored.code}</p>
+        </div>
+        <div className="flex flex-col items-end gap-2">
+          {state ? <StatusBadge status={state.status} dark /> : null}
+          <button type="button" onClick={leave} className="min-h-11 px-2 text-sm text-stage-muted underline-offset-2">
+            Leave
+          </button>
+        </div>
+      </header>
+
+      <main className="mx-auto mt-6 flex w-full max-w-md flex-1 flex-col">
+        {error ? <p className="mb-4 rounded-lg bg-red-500/15 px-3 py-2 text-sm text-red-200">{error}</p> : null}
+
+        {!state || state.status === "LOBBY" ? (
+          <LobbyPanel teamName={stored.teamName} state={state} />
+        ) : null}
+
+        {state?.status === "QUESTION_ACTIVE" ? (
+          <form onSubmit={submitAnswer} className="flex flex-1 flex-col">
+            <RoundKicker state={state} />
+            <h2 className="mt-3 text-2xl font-bold leading-snug">{state.question?.text}</h2>
+            <label className="mt-6 block flex-1">
+              <span className="text-sm font-medium">Your answer</span>
+              <textarea
+                value={answer}
+                onChange={(e) => setAnswer(e.target.value)}
+                rows={4}
+                maxLength={500}
+                className="mt-2 min-h-32 w-full rounded-xl border border-white/15 bg-white px-4 py-3 text-lg text-stage outline-none focus:ring-2 focus:ring-gold"
+                required
+              />
+            </label>
+            <button
+              type="submit"
+              disabled={busy || answer.trim().length === 0}
+              className="mt-4 h-14 w-full rounded-xl bg-gold text-lg font-semibold text-stage disabled:opacity-40"
+            >
+              {busy ? "Sending…" : state.myAnswer ? "Update answer" : "Submit answer"}
+            </button>
+            {state.myAnswer ? (
+              <p className="mt-3 text-center text-sm text-stage-muted">
+                In: “{state.myAnswer.text}”. You can change it until the host reveals.
+              </p>
+            ) : null}
+          </form>
+        ) : null}
+
+        {state?.status === "REVEAL" ? <RevealPanel state={state} /> : null}
+        {state?.status === "ENDED" ? <EndedPanel state={state} /> : null}
+      </main>
+    </div>
+  );
+}
+
+function RoundKicker({ state }: { state: TeamSessionState }) {
+  return (
+    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gold">
+      Round {state.roundNumber}
+      {state.round ? ` · ${state.round.title}` : ""} · Q{state.questionNumber}
+      {state.question ? ` · ${state.question.points} pt` : ""}
+    </p>
+  );
+}
+
+function LobbyPanel({ teamName, state }: { teamName: string; state: TeamSessionState | null }) {
+  return (
+    <div className="flex flex-1 flex-col">
+      <h2 className="text-3xl font-bold">You’re in, {teamName}.</h2>
+      <p className="mt-3 text-lg text-stage-muted">Sit tight. The host will start the first question from the desk.</p>
+      <section className="mt-8 rounded-2xl bg-white/5 p-4">
+        <h3 className="mb-3 font-semibold">Scoreboard</h3>
+        <Scoreboard rows={state?.scoreboard ?? []} highlightName={teamName} dark />
+      </section>
+    </div>
+  );
+}
+
+function RevealPanel({ state }: { state: TeamSessionState }) {
+  const correct = state.myAnswer?.isCorrect;
+  return (
+    <div className="flex flex-1 flex-col">
+      <RoundKicker state={state} />
+      <h2 className="mt-3 text-2xl font-bold leading-snug">{state.question?.text}</h2>
+      <div
+        className={`mt-6 rounded-2xl px-4 py-5 ${
+          correct ? "bg-emerald-500/15 text-emerald-100" : "bg-red-500/15 text-red-100"
+        }`}
+      >
+        <p className="text-sm font-semibold uppercase tracking-wide">
+          {state.myAnswer
+            ? correct
+              ? `Correct · +${state.myAnswer.pointsAwarded ?? 0}`
+              : "Not this time"
+            : "No answer submitted"}
+        </p>
+        {state.myAnswer ? <p className="mt-2 text-lg">You said: {state.myAnswer.text}</p> : null}
+        {state.question?.answer ? (
+          <p className="mt-2 text-lg font-semibold">Answer: {state.question.answer}</p>
+        ) : null}
+      </div>
+      <section className="mt-8 rounded-2xl bg-white/5 p-4">
+        <h3 className="mb-3 font-semibold">Scoreboard</h3>
+        <Scoreboard rows={state.scoreboard} highlightName={state.teamName} dark />
+      </section>
+    </div>
+  );
+}
+
+function EndedPanel({ state }: { state: TeamSessionState }) {
+  const mine = state.scoreboard.find((row) => row.name === state.teamName);
+  const place = mine ? state.scoreboard.findIndex((row) => row.teamId === mine.teamId) + 1 : null;
+  return (
+    <div className="flex flex-1 flex-col">
+      <h2 className="text-3xl font-bold">Quiz over</h2>
+      <p className="mt-3 text-lg text-stage-muted">
+        {place && mine ? `${state.teamName} finished ${ordinal(place)} with ${mine.score} points.` : "Thanks for playing."}
+      </p>
+      <section className="mt-8 rounded-2xl bg-white/5 p-4">
+        <h3 className="mb-3 font-semibold">Final scores</h3>
+        <Scoreboard rows={state.scoreboard} highlightName={state.teamName} dark />
+      </section>
+    </div>
+  );
+}
+
+function ordinal(n: number) {
+  const suffixes = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return `${n}${suffixes[(v - 20) % 10] || suffixes[v] || suffixes[0]}`;
+}

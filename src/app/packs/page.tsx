@@ -1,0 +1,64 @@
+import Link from "next/link";
+import { db } from "@/lib/db";
+import { SiteHeader } from "@/components/SiteHeader";
+
+export const dynamic = "force-dynamic";
+
+export default async function PacksPage() {
+  const packs = await db.quizPack.findMany({
+    orderBy: { createdAt: "desc" },
+    include: { rounds: { include: { questions: true } } },
+  });
+
+  return (
+    <>
+      <SiteHeader />
+      <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-10">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Quiz packs</h1>
+            <p className="mt-2 text-muted">Edit questions, preview print sheets, then start a live session.</p>
+          </div>
+          <Link
+            href="/create"
+            className="inline-flex h-11 items-center rounded-xl bg-amber px-4 text-sm font-semibold text-white hover:bg-amber-hover"
+          >
+            New pack
+          </Link>
+        </div>
+
+        {packs.length === 0 ? (
+          <div className="paper-sheet mt-10 rounded-xl border border-line px-6 py-12 text-center">
+            <p className="font-medium">No packs yet.</p>
+            <p className="mt-2 text-sm text-muted">Generate one from a brief, or seed the demo pack.</p>
+            <Link href="/create" className="mt-5 inline-block text-sm font-semibold text-amber">
+              Open the wizard →
+            </Link>
+          </div>
+        ) : (
+          <ul className="mt-8 grid gap-4 sm:grid-cols-2">
+            {packs.map((pack) => {
+              const questionCount = pack.rounds.reduce((sum, round) => sum + round.questions.length, 0);
+              return (
+                <li key={pack.id}>
+                  <Link
+                    href={`/packs/${pack.id}`}
+                    className="paper-sheet block rounded-xl border border-line p-5 transition-transform hover:-translate-y-0.5"
+                  >
+                    <h2 className="text-lg font-semibold">{pack.title}</h2>
+                    <p className="mt-2 text-sm text-muted">
+                      {pack.rounds.length} rounds · {questionCount} questions
+                    </p>
+                    <p className="mt-1 text-xs text-muted">
+                      {new Date(pack.createdAt).toLocaleDateString()}
+                    </p>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </main>
+    </>
+  );
+}
