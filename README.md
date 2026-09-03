@@ -107,8 +107,15 @@ npm run lint
 `test:integration` spins up `prisma/test.db` (migrated fresh each run, gitignored)
 and drives the actual route handlers — create pack → create session → join →
 answer → auto-score → reveal → host override → advance through every question
-to `ENDED` — plus edge cases like duplicate team names and answering before
-the quiz has started.
+to `ENDED` — plus edge cases like duplicate team names, answering before the
+quiz has started, a second answer after the host has revealed, joining
+mid-game vs. joining a session that's already ended, and the wizard's
+input-validation and unconfigured-API-key paths (`src/test/edge-cases.integration.test.ts`).
+
+Unit tests also cover input-boundary regressions directly — e.g. a
+whitespace-only prompt or team name passing a naive `.min(1)` check
+(`quiz-schema.test.ts`) and the rate limiter's window/isolation behavior
+(`rate-limit.test.ts`).
 
 `test:e2e` runs against `prisma/e2e.db` (own throwaway DB, migrated fresh
 by a Playwright global setup) and a dedicated `next dev` on port 4517 that

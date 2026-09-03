@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { generateTeamToken } from "@/lib/codes";
+import { SESSION_STATUS } from "@/lib/session-state";
 
 const joinSchema = z.object({
-  name: z.string().min(1).max(40),
+  name: z.string().trim().min(1).max(40),
 });
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ code: string }> }) {
@@ -19,8 +20,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   if (!session) {
     return NextResponse.json({ error: "Session not found" }, { status: 404 });
   }
+  if (session.status === SESSION_STATUS.ENDED) {
+    return NextResponse.json({ error: "This quiz has already ended" }, { status: 409 });
+  }
 
-  const name = parsed.data.name.trim();
+  const name = parsed.data.name;
   const existing = await db.team.findUnique({
     where: { sessionId_name: { sessionId: session.id, name } },
   });

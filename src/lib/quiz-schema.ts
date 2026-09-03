@@ -22,5 +22,5 @@ export type GeneratedRound = z.infer<typeof generatedRoundSchema>;
 export type GeneratedQuestion = z.infer<typeof generatedQuestionSchema>;
 
 export const wizardRequestSchema = z.object({
-  prompt: z.string().min(1).max(2000),
+  prompt: z.string().trim().min(1).max(2000),
 });
