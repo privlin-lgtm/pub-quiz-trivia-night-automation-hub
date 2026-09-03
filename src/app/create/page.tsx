@@ -38,7 +38,7 @@ export default function CreatePage() {
     <>
       <SiteHeader />
       <main className="mx-auto w-full max-w-2xl flex-1 px-5 py-10">
-        <h1 className="text-3xl font-bold tracking-tight">Generate a quiz pack</h1>
+        <h1 className="font-serif text-3xl font-semibold tracking-tight">Generate a quiz pack</h1>
         <p className="mt-2 text-muted">
           Tell the wizard what kind of night you are running. It will draft rounds, questions,
           answers, and points you can edit next.

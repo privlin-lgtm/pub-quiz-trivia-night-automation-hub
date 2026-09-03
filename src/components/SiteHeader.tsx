@@ -8,9 +8,10 @@ const links = [
 
 export function SiteHeader() {
   return (
-    <header className="border-b border-line bg-background/90 backdrop-blur">
-      <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-5 py-3">
-        <Link href="/" className="text-sm font-semibold tracking-tight">
+    <header className="border-b-2 border-foreground/90 bg-background/90 backdrop-blur">
+      <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-5 py-3.5">
+        <Link href="/" className="flex items-center gap-2 font-serif text-base font-semibold tracking-tight">
+          <span aria-hidden className="h-2 w-2 rounded-full bg-amber" />
           Pub Quiz Hub
         </Link>
         <nav className="flex items-center gap-1">
@@ -18,7 +19,7 @@ export function SiteHeader() {
             <Link
               key={link.href}
               href={link.href}
-              className="rounded-md px-3 py-2 text-sm text-muted hover:text-foreground"
+              className="rounded-md px-3 py-2 text-sm text-muted transition-colors hover:text-foreground"
             >
               {link.label}
             </Link>

@@ -17,7 +17,7 @@ export default async function PacksPage() {
       <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-10">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Quiz packs</h1>
+            <h1 className="font-serif text-3xl font-semibold tracking-tight">Quiz packs</h1>
             <p className="mt-2 text-muted">Edit questions, preview print sheets, then start a live session.</p>
           </div>
           <Link
@@ -46,7 +46,7 @@ export default async function PacksPage() {
                     href={`/packs/${pack.id}`}
                     className="paper-sheet block rounded-xl border border-line p-5 transition-transform hover:-translate-y-0.5"
                   >
-                    <h2 className="text-lg font-semibold">{pack.title}</h2>
+                    <h2 className="font-serif text-lg font-semibold">{pack.title}</h2>
                     <p className="mt-2 text-sm text-muted">
                       {pack.rounds.length} rounds · {questionCount} questions
                     </p>

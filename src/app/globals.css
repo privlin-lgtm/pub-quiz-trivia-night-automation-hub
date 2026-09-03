@@ -1,16 +1,27 @@
 @import "tailwindcss";
 
+/*
+  "Chalk & Brass" — two linked surfaces that map to how a pub quiz actually
+  runs: the prep desk (paper, ink, brass) and the live room (chalkboard,
+  gold chalk). Same token names the rest of the app already reaches for
+  (bg-amber, text-stage-fg, bg-gold, …) — only the values and a couple of
+  textures changed here, so this file is the single place that carries the
+  whole visual identity.
+*/
 :root {
-  --background: #f4efe4;
-  --foreground: #1c1712;
-  --muted: #5c5348;
-  --line: #d4c8b4;
-  --amber: #c2410c;
-  --amber-hover: #9a3412;
-  --stage: #12100d;
-  --stage-fg: #f6f0e6;
-  --stage-muted: #c4b8a5;
-  --gold: #e8b84a;
+  --background: #f2e7d3;
+  --foreground: #26190e;
+  --muted: #6e5a42;
+  --line: #dcc9a6;
+  --amber: #9c5a18;
+  --amber-hover: #713f0e;
+  --stage: #161f1a;
+  --stage-fg: #f1e9d8;
+  --stage-muted: #9daf9f;
+  --gold: #e2aa3e;
+
+  --radius-xl: 0.65rem;
+  --radius-2xl: 0.9rem;
 }
 
 @theme inline {
@@ -24,21 +35,63 @@
   --color-stage-fg: var(--stage-fg);
   --color-stage-muted: var(--stage-muted);
   --color-gold: var(--gold);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+
+  --font-sans: var(--font-body), Arial, Helvetica, sans-serif;
+  --font-serif: var(--font-display), Georgia, serif;
+  --font-mono: var(--font-mono-plex), ui-monospace, monospace;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
 }
 
+/* A short brass double-rule — the one signature mark repeated wherever a
+   heading needs real weight: a thick stroke over a thin one, like the rule
+   under a menu-board header. Deliberately small and quiet everywhere else. */
+.rule-brass {
+  position: relative;
+  display: inline-block;
+  padding-bottom: 0.5rem;
+}
+.rule-brass::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 3.25rem;
+  height: 5px;
+  background: var(--amber);
+  border-bottom: 2px solid var(--foreground);
+  opacity: 0.9;
+}
+.rule-brass--dark::after {
+  background: var(--gold);
+  border-bottom-color: var(--stage-fg);
+  opacity: 0.85;
+}
+
+/* Paper card: warm white with a faint fiber grain, not a flat swatch. */
 .paper-sheet {
-  background: #fffdf8;
+  background:
+    radial-gradient(circle at 1px 1px, rgba(38, 25, 14, 0.05) 1px, transparent 0) 0 0/14px 14px,
+    #fffaf0;
   box-shadow:
-    0 1px 0 rgba(28, 23, 18, 0.06),
-    0 18px 40px rgba(28, 23, 18, 0.08);
+    0 1px 0 rgba(38, 25, 14, 0.07),
+    0 18px 40px rgba(38, 25, 14, 0.1);
+}
+
+/* Chalkboard surfaces: every existing `bg-stage` usage picks this up for
+   free (same Tailwind class, extended here) — a faint chalk-dust grain plus
+   a soft top vignette instead of a flat near-black. */
+.bg-stage {
+  background-color: var(--stage);
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(241, 233, 216, 0.05) 1px, transparent 0),
+    radial-gradient(ellipse 90% 60% at 50% -10%, rgba(226, 170, 62, 0.08), transparent 60%);
+  background-size: 16px 16px, 100% 100%;
+  background-repeat: repeat, no-repeat;
 }
 
 @media print {
@@ -51,6 +104,7 @@ body {
   }
 
   .paper-sheet {
+    background: white;
     box-shadow: none;
     width: 100%;
     max-width: none;

@@ -136,7 +136,7 @@ export function TeamPortal() {
       <div className="flex min-h-dvh flex-col bg-stage px-5 py-8 text-stage-fg">
         <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">Team portal</p>
-          <h1 className="mt-3 text-3xl font-bold tracking-tight">Join tonight’s quiz</h1>
+          <h1 className="mt-3 font-serif text-3xl font-semibold tracking-tight">Join tonight’s quiz</h1>
           <p className="mt-2 text-stage-muted">Ask the host for the 5-character code, then pick a team name.</p>
 
           <form onSubmit={join} className="mt-8 space-y-5">
@@ -204,7 +204,7 @@ export function TeamPortal() {
         {state?.status === "QUESTION_ACTIVE" ? (
           <form onSubmit={submitAnswer} className="flex flex-1 flex-col">
             <RoundKicker state={state} />
-            <h2 className="mt-3 text-2xl font-bold leading-snug">{state.question?.text}</h2>
+            <h2 className="mt-3 font-serif text-2xl font-semibold leading-snug">{state.question?.text}</h2>
             <label className="mt-6 block flex-1">
               <span className="text-sm font-medium">Your answer</span>
               <textarea
@@ -251,7 +251,7 @@ function RoundKicker({ state }: { state: TeamSessionState }) {
 function LobbyPanel({ teamName, state }: { teamName: string; state: TeamSessionState | null }) {
   return (
     <div className="flex flex-1 flex-col">
-      <h2 className="text-3xl font-bold">You’re in, {teamName}.</h2>
+      <h2 className="font-serif text-3xl font-semibold">You’re in, {teamName}.</h2>
       <p className="mt-3 text-lg text-stage-muted">Sit tight. The host will start the first question from the desk.</p>
       <section className="mt-8 rounded-2xl bg-white/5 p-4">
         <h3 className="mb-3 font-semibold">Scoreboard</h3>
@@ -266,7 +266,7 @@ function RevealPanel({ state }: { state: TeamSessionState }) {
   return (
     <div className="flex flex-1 flex-col">
       <RoundKicker state={state} />
-      <h2 className="mt-3 text-2xl font-bold leading-snug">{state.question?.text}</h2>
+      <h2 className="mt-3 font-serif text-2xl font-semibold leading-snug">{state.question?.text}</h2>
       <div
         className={`mt-6 rounded-2xl px-4 py-5 ${
           correct ? "bg-emerald-500/15 text-emerald-100" : "bg-red-500/15 text-red-100"
@@ -297,7 +297,7 @@ function EndedPanel({ state }: { state: TeamSessionState }) {
   const place = mine ? state.scoreboard.findIndex((row) => row.teamId === mine.teamId) + 1 : null;
   return (
     <div className="flex flex-1 flex-col">
-      <h2 className="text-3xl font-bold">Quiz over</h2>
+      <h2 className="font-serif text-3xl font-semibold">Quiz over</h2>
       <p className="mt-3 text-lg text-stage-muted">
         {place && mine ? `${state.teamName} finished ${ordinal(place)} with ${mine.score} points.` : "Thanks for playing."}
       </p>

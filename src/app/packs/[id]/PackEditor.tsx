@@ -88,7 +88,7 @@ export function PackEditor({ pack }: { pack: Pack }) {
             <span className="px-2">/</span>
             Editor
           </p>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight">{pack.title}</h1>
+          <h1 className="mt-2 font-serif text-3xl font-semibold tracking-tight">{pack.title}</h1>
           <p className="mt-2 text-sm text-muted">
             {pack.rounds.length} rounds · {questionCount} questions
           </p>

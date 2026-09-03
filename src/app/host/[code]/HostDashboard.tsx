@@ -151,7 +151,7 @@ export function HostDashboard({ code }: { code: string }) {
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4">
           <div>
             <p className="text-xs uppercase tracking-[0.18em] text-gold">Host desk</p>
-            <h1 className="mt-1 text-xl font-semibold">{state.packTitle}</h1>
+            <h1 className="mt-1 font-serif text-xl font-semibold">{state.packTitle}</h1>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <StatusBadge status={state.status} dark />
@@ -169,7 +169,7 @@ export function HostDashboard({ code }: { code: string }) {
         <section className="rounded-2xl bg-white/5 p-5 sm:p-6">
           {state.status === "LOBBY" ? (
             <>
-              <h2 className="text-2xl font-bold">Waiting for teams</h2>
+              <h2 className="font-serif text-2xl font-semibold">Waiting for teams</h2>
               <p className="mt-2 text-stage-muted">
                 Share the code. Start when everyone is in — late joiners can still arrive during the lobby.
               </p>
@@ -194,7 +194,7 @@ export function HostDashboard({ code }: { code: string }) {
                 Question {state.questionNumber} of {state.totalQuestionsInRound}
                 {state.question ? ` · ${state.question.points} pt` : ""}
               </p>
-              <h2 className="mt-4 text-2xl font-bold leading-snug sm:text-3xl">
+              <h2 className="mt-4 font-serif text-2xl font-semibold leading-snug sm:text-3xl">
                 {state.question?.text ?? "No question loaded"}
               </h2>
               {state.question?.answer ? (
@@ -230,7 +230,7 @@ export function HostDashboard({ code }: { code: string }) {
 
           {state.status === "ENDED" ? (
             <>
-              <h2 className="text-3xl font-bold">That’s the night</h2>
+              <h2 className="font-serif text-3xl font-semibold">That’s the night</h2>
               <p className="mt-2 text-stage-muted">Final scores are on the right. Thanks for hosting.</p>
             </>
           ) : null}
