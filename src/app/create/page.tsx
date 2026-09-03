@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { SiteHeader } from "@/components/SiteHeader";
+import { ArrowRightIcon } from "@/components/icons";
 
 const EXAMPLE =
   "A Friday-night pub quiz: four rounds covering 90s music, UK geography, movie quotes, and a picture-round-style general knowledge closer. Keep answers short and pub-friendly.";
@@ -82,9 +83,10 @@ export default function CreatePage() {
                   type="button"
                   onClick={useDemoPack}
                   disabled={busy}
-                  className="mt-2 font-semibold underline underline-offset-2 disabled:opacity-50"
+                  className="group mt-2 inline-flex items-center gap-1.5 font-semibold underline underline-offset-2 disabled:opacity-50"
                 >
-                  Use the demo pack instead →
+                  Use the demo pack instead
+                  <ArrowRightIcon className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
                 </button>
               ) : null}
             </div>

@@ -7,7 +7,7 @@ export const DEMO_PACK: GeneratedPack = {
   title: "Friday Night Demo Pack",
   rounds: [
     {
-      title: "Round 1",
+      title: "Warm-Up",
       category: "General Knowledge",
       questions: [
         { text: "What is the capital of Australia?", answer: "Canberra", points: 1 },
@@ -16,7 +16,7 @@ export const DEMO_PACK: GeneratedPack = {
       ],
     },
     {
-      title: "Round 2",
+      title: "Flashback",
       category: "90s Pop Culture",
       questions: [
         { text: "Who played Jack in the 1997 film Titanic?", answer: "Leonardo DiCaprio", points: 2 },

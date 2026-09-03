@@ -299,7 +299,9 @@ function EndedPanel({ state }: { state: TeamSessionState }) {
     <div className="flex flex-1 flex-col">
       <h2 className="font-serif text-3xl font-semibold">Quiz over</h2>
       <p className="mt-3 text-lg text-stage-muted">
-        {place && mine ? `${state.teamName} finished ${ordinal(place)} with ${mine.score} points.` : "Thanks for playing."}
+        {place && mine
+          ? `${state.teamName} finished ${ordinal(place)} with ${mine.score} ${mine.score === 1 ? "point" : "points"}.`
+          : "Thanks for playing."}
       </p>
       <section className="mt-8 rounded-2xl bg-white/5 p-4">
         <h3 className="mb-3 font-semibold">Final scores</h3>

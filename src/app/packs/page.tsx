@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { SiteHeader } from "@/components/SiteHeader";
+import { ArrowRightIcon } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
 
@@ -32,8 +33,9 @@ export default async function PacksPage() {
           <div className="paper-sheet mt-10 rounded-xl border border-line px-6 py-12 text-center">
             <p className="font-medium">No packs yet.</p>
             <p className="mt-2 text-sm text-muted">Generate one from a brief, or seed the demo pack.</p>
-            <Link href="/create" className="mt-5 inline-block text-sm font-semibold text-amber">
-              Open the wizard →
+            <Link href="/create" className="group mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-amber">
+              Open the wizard
+              <ArrowRightIcon className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
             </Link>
           </div>
         ) : (
@@ -44,7 +46,7 @@ export default async function PacksPage() {
                 <li key={pack.id}>
                   <Link
                     href={`/packs/${pack.id}`}
-                    className="paper-sheet block rounded-xl border border-line p-5 transition-transform hover:-translate-y-0.5"
+                    className="paper-sheet block rounded-xl border border-line p-5 transition-colors hover:border-amber/50"
                   >
                     <h2 className="font-serif text-lg font-semibold">{pack.title}</h2>
                     <p className="mt-2 text-sm text-muted">

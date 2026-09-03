@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { ArrowLeftIcon } from "@/components/icons";
 import type { Pack } from "@/lib/api-types";
 
 const TABS = [
@@ -17,10 +18,14 @@ export function PrintPreview({ pack }: { pack: Pack }) {
     <div className="min-h-full bg-[#e8dfcf] pb-16">
       <div className="print-chrome mx-auto flex w-full max-w-3xl flex-wrap items-center justify-between gap-3 px-5 py-5">
         <div>
-          <Link href={`/packs/${pack.id}`} className="text-sm text-muted hover:text-foreground">
-            ← Back to editor
+          <Link
+            href={`/packs/${pack.id}`}
+            className="group inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground"
+          >
+            <ArrowLeftIcon className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-1" />
+            Back to editor
           </Link>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight">Print layout</h1>
+          <h1 className="mt-1 font-serif text-2xl font-semibold tracking-tight">Print layout</h1>
         </div>
         <a
           href={`/api/packs/${pack.id}/pdf?type=${TABS.find((item) => item.id === tab)?.type}`}

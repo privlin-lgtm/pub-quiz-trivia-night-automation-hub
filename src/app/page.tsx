@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SiteHeader } from "@/components/SiteHeader";
+import { ArrowRightIcon } from "@/components/icons";
 import type { SVGProps } from "react";
 
 function QuillIcon(props: SVGProps<SVGSVGElement>) {
@@ -26,14 +27,6 @@ function PhoneLiveIcon(props: SVGProps<SVGSVGElement>) {
       <rect x="6.5" y="2.5" width="10" height="19" rx="2.2" />
       <path d="M10.5 18.2h2" />
       <path d="M19 8.5c1 1 1 3.5 0 4.5" />
-    </svg>
-  );
-}
-
-function ArrowIcon(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <path d="M2 8h11M9.5 4 13 8l-3.5 4" />
     </svg>
   );
 }
@@ -92,7 +85,7 @@ export default function Home() {
               <p className="mt-2 text-sm text-muted">{card.body}</p>
               <span className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-amber">
                 {card.cta}
-                <ArrowIcon className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
+                <ArrowRightIcon className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
               </span>
             </Link>
           ))}

@@ -16,7 +16,13 @@ const quizPackJsonSchema: Anthropic.Tool.InputSchema = {
       items: {
         type: "object",
         properties: {
-          title: { type: "string", description: "e.g. 'Round 1'" },
+          title: {
+            type: "string",
+            description:
+              "A short, distinct round name — never just the ordinal (not 'Round 1'). " +
+              "The UI already numbers rounds, so this is the name shown next to that number, " +
+              "e.g. 'Warm-Up', 'Music Bingo', 'Around the World'.",
+          },
           category: { type: "string", description: "e.g. '19th-Century History'" },
           questions: {
             type: "array",

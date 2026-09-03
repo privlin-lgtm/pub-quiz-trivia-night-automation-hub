@@ -104,7 +104,7 @@ export function HostDashboard({ code }: { code: string }) {
       <div className="flex min-h-full items-center justify-center bg-stage px-5 text-stage-fg">
         <div className="w-full max-w-sm">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gold">Host desk</p>
-          <h1 className="mt-2 text-2xl font-bold">Host key needed</h1>
+          <h1 className="mt-2 font-serif text-2xl font-semibold">Host key needed</h1>
           <p className="mt-2 text-stage-muted">
             This browser doesn&apos;t have host access for session {code}. If you started this
             session here, try reopening it from the pack editor. Otherwise paste the host key
