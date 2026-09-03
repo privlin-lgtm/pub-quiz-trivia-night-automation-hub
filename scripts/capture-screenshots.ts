@@ -1,0 +1,161 @@
+/**
+ * Captures real, in-browser screenshots of the app for the README / portfolio
+ * section. Not a Playwright *test* — it's a standalone script that drives a
+ * throwaway dev server + Chromium and writes actual PNG files to disk, so it
+ * intentionally lives outside e2e/ (which is testDir for `npm run test:e2e`)
+ * and is never picked up by CI.
+ *
+ * Usage: npm run screenshots
+ */
+import { chromium, devices, type Page } from "@playwright/test";
+import { spawn, execSync, type ChildProcess } from "node:child_process";
+import { existsSync, mkdirSync, rmSync } from "node:fs";
+import path from "node:path";
+
+const ROOT = path.resolve(__dirname, "..");
+const PORT = 4518;
+const BASE_URL = `http://localhost:${PORT}`;
+const DB_PATH = path.resolve(ROOT, "prisma/screenshots.db");
+const OUT_DIR = path.resolve(ROOT, "docs/screenshots");
+
+function log(msg: string) {
+  console.log(`[screenshots] ${msg}`);
+}
+
+async function waitForServer(url: string, timeoutMs: number) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const res = await fetch(url);
+      if (res.status < 500) return;
+    } catch {
+      // not up yet
+    }
+    await new Promise((r) => setTimeout(r, 300));
+  }
+  throw new Error(`Server at ${url} did not become ready within ${timeoutMs}ms`);
+}
+
+async function shot(page: Page, name: string) {
+  const file = path.join(OUT_DIR, name);
+  await page.screenshot({ path: file });
+  log(`saved ${path.relative(ROOT, file)}`);
+}
+
+async function main() {
+  // --- fresh throwaway DB, migrated ---
+  if (existsSync(DB_PATH)) rmSync(DB_PATH);
+  if (existsSync(`${DB_PATH}-journal`)) rmSync(`${DB_PATH}-journal`);
+  mkdirSync(OUT_DIR, { recursive: true });
+
+  const dbEnv = { ...process.env, DATABASE_URL: `file:${DB_PATH}` };
+  log("running prisma migrate deploy against a throwaway screenshots.db");
+  execSync("npx prisma migrate deploy", { cwd: ROOT, env: dbEnv, stdio: "inherit" });
+
+  // --- start a dedicated dev server ---
+  log(`starting next dev on port ${PORT}`);
+  const server: ChildProcess = spawn("npm", ["run", "dev", "--", "-p", String(PORT)], {
+    cwd: ROOT,
+    env: dbEnv,
+    stdio: "ignore",
+    // npm resolves to npm.cmd on Windows; spawn() only finds it via a shell.
+    shell: true,
+  });
+
+  let cleanedUp = false;
+  const cleanup = () => {
+    if (cleanedUp || server.pid == null) return;
+    cleanedUp = true;
+    if (process.platform === "win32") {
+      // server was spawned with shell:true (npm.cmd needs a shell to
+      // resolve on Windows), so server.kill() only kills the cmd.exe
+      // wrapper — the actual `next dev` grandchild survives it and leaks
+      // a listening port. /T kills the whole process tree instead.
+      try {
+        execSync(`taskkill /PID ${server.pid} /T /F`, { stdio: "ignore" });
+      } catch {
+        // already dead — fine
+      }
+    } else {
+      server.kill();
+    }
+  };
+  process.on("exit", cleanup);
+
+  try {
+    await waitForServer(BASE_URL, 60_000);
+    log("server is up");
+
+    const browser = await chromium.launch();
+
+    // Desktop context — landing, wizard, editor, print preview, host dashboard.
+    const desktop = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    const host = await desktop.newPage();
+
+    await host.goto(`${BASE_URL}/`);
+    await shot(host, "01-landing.png");
+
+    await host.goto(`${BASE_URL}/create`);
+    await shot(host, "02-create-wizard.png");
+
+    // Seed a demo pack via the API (no Anthropic key needed) and open the editor.
+    const seedRes = await fetch(`${BASE_URL}/api/packs/seed`, { method: "POST" });
+    if (!seedRes.ok) throw new Error(`seed failed: ${seedRes.status} ${await seedRes.text()}`);
+    const { pack } = (await seedRes.json()) as { pack: { id: string } };
+
+    await host.goto(`${BASE_URL}/packs/${pack.id}`);
+    await shot(host, "03-pack-editor.png");
+
+    await host.goto(`${BASE_URL}/packs/${pack.id}/print?type=questions`);
+    await shot(host, "04-print-preview.png");
+
+    // Start a live session from the editor.
+    await host.goto(`${BASE_URL}/packs/${pack.id}`);
+    await host.getByRole("button", { name: "Start live session" }).click();
+    await host.waitForURL(/\/host\//);
+    const code = host.url().split("/host/")[1];
+    await shot(host, "05-host-lobby.png");
+
+    // Mobile context — the team portal, as a phone-shaped viewport.
+    const mobile = await browser.newContext({ ...devices["iPhone 13"] });
+    const team = await mobile.newPage();
+    await team.goto(`${BASE_URL}/play`);
+    await team.getByLabel("Session code").fill(code);
+    await team.getByLabel("Team name").fill("Quiz Pigs");
+    await team.getByRole("button", { name: "Join session" }).click();
+    await shot(team, "06-team-join.png");
+
+    await host.waitForSelector('button:has-text("Start quiz"):not([disabled])', { timeout: 10_000 });
+    await host.getByRole("button", { name: "Start quiz" }).click();
+    await host.waitForSelector("text=What is the capital of Australia?");
+    await shot(host, "07-host-question-live.png");
+
+    await team.waitForSelector("text=What is the capital of Australia?", { timeout: 10_000 });
+    await team.getByLabel("Your answer").fill("Canberra");
+    await shot(team, "08-team-answer.png");
+    await team.getByRole("button", { name: "Submit answer" }).click();
+
+    await host.waitForSelector("text=1/1", { timeout: 10_000 });
+    await shot(host, "09-host-live-submission.png");
+
+    await host.getByRole("button", { name: "Reveal answer" }).click();
+    // "Canberra" alone is already on screen pre-reveal (the live-submissions
+    // panel shows raw answer text as soon as it's submitted); only the
+    // "Answer: …" box is gated on the host having actually revealed.
+    await host.waitForSelector("text=Answer: Canberra");
+    await shot(host, "10-host-reveal-scoreboard.png");
+
+    await team.waitForSelector("text=/Correct/", { timeout: 10_000 });
+    await shot(team, "11-team-reveal.png");
+
+    await browser.close();
+    log(`done — ${OUT_DIR}`);
+  } finally {
+    cleanup();
+  }
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exitCode = 1;
+});

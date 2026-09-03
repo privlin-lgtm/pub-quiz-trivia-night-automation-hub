@@ -41,6 +41,8 @@ yarn-error.log*
 /prisma/test.db-journal
 /prisma/e2e.db
 /prisma/e2e.db-journal
+/prisma/screenshots.db
+/prisma/screenshots.db-journal
 
 # playwright
 /playwright-report
@@ -53,3 +55,5 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+/prisma/screenshots.db
+/prisma/screenshots.db-journal
