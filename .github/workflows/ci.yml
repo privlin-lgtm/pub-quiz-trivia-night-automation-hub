@@ -24,6 +24,15 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate
 
+      - name: Generate Next.js route types
+        # `layout.tsx` etc. reference ambient types (e.g. LayoutProps) that
+        # Next.js only generates once next dev/build has run at least once.
+        # Every local typecheck in this repo's history had .next/types/
+        # already populated from constant `next dev` use, which hid this —
+        # a fresh checkout (exactly what CI does) fails immediately without
+        # this step. See commit history for the postmortem.
+        run: npx next typegen
+
       - name: Typecheck
         run: npx tsc --noEmit
 
