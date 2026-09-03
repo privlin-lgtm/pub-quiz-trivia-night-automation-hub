@@ -12,11 +12,13 @@ export default function CreatePage() {
   const [prompt, setPrompt] = useState(EXAMPLE);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notConfigured, setNotConfigured] = useState(false);
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
     setBusy(true);
     setError(null);
+    setNotConfigured(false);
     try {
       const res = await fetch("/api/packs/generate", {
         method: "POST",
@@ -25,11 +27,26 @@ export default function CreatePage() {
       });
       const data = await res.json();
       if (!res.ok) {
+        setNotConfigured(res.status === 503);
         throw new Error(data.error ?? "Generation failed");
       }
       router.push(`/packs/${data.pack.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Generation failed");
+      setBusy(false);
+    }
+  }
+
+  async function useDemoPack() {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/packs/seed", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Could not create the demo pack");
+      router.push(`/packs/${data.pack.id}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not create the demo pack");
       setBusy(false);
     }
   }
@@ -58,7 +75,19 @@ export default function CreatePage() {
           </label>
 
           {error ? (
-            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p>
+            <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">
+              <p>{error}</p>
+              {notConfigured ? (
+                <button
+                  type="button"
+                  onClick={useDemoPack}
+                  disabled={busy}
+                  className="mt-2 font-semibold underline underline-offset-2 disabled:opacity-50"
+                >
+                  Use the demo pack instead →
+                </button>
+              ) : null}
+            </div>
           ) : null}
 
           <button

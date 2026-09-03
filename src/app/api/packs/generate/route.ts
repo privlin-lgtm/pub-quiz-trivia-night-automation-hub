@@ -3,6 +3,7 @@ import { createPackFromGenerated } from "@/lib/create-pack";
 import { generateQuizPack } from "@/lib/generate-pack";
 import { wizardRequestSchema } from "@/lib/quiz-schema";
 import { rateLimit } from "@/lib/rate-limit";
+import { MissingApiKeyError } from "@/lib/anthropic";
 
 export async function POST(req: NextRequest) {
   // Each call spends real Anthropic API credit, so this is throttled
@@ -28,6 +29,18 @@ export async function POST(req: NextRequest) {
   try {
     generated = await generateQuizPack(parsed.data.prompt);
   } catch (err) {
+    if (err instanceof MissingApiKeyError) {
+      // Not an upstream failure — nothing to hide, and "please try again"
+      // would be actively misleading here since retrying can't help.
+      return NextResponse.json(
+        {
+          error:
+            "AI generation isn't configured on this server yet — set ANTHROPIC_API_KEY " +
+            "in .env and restart, or use the demo pack (POST /api/packs/seed) instead.",
+        },
+        { status: 503 }
+      );
+    }
     // Log the real cause server-side; don't forward raw SDK/API error
     // internals (model names, request ids, etc.) to the client.
     console.error("Quiz pack generation failed:", err);
