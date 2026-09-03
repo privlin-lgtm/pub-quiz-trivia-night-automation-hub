@@ -15,9 +15,9 @@
   --line: #dcc9a6;
   --amber: #9c5a18;
   --amber-hover: #713f0e;
-  --stage: #161f1a;
-  --stage-fg: #f1e9d8;
-  --stage-muted: #9daf9f;
+  --stage: #2c3a33;
+  --stage-fg: #f6f1e4;
+  --stage-muted: #a9bcae;
   --gold: #e2aa3e;
 
   --radius-xl: 0.65rem;
@@ -92,6 +92,28 @@ body {
     radial-gradient(ellipse 90% 60% at 50% -10%, rgba(226, 170, 62, 0.08), transparent 60%);
   background-size: 16px 16px, 100% 100%;
   background-repeat: repeat, no-repeat;
+}
+
+/* Panels/badges/hairlines on the chalkboard were sized as translucent white
+   overlays (bg-white/5, /10, /15, border-white/10, /15) tuned against the
+   old near-black stage — against the lighter stage above they read as
+   almost no contrast at all. Same classes, raised and warmed so a panel
+   actually reads as a panel. */
+.bg-white\/5 {
+  background-color: rgba(246, 241, 228, 0.1);
+  border: 1px solid rgba(246, 241, 228, 0.12);
+}
+.bg-white\/10 {
+  background-color: rgba(246, 241, 228, 0.16);
+}
+.bg-white\/15 {
+  background-color: rgba(246, 241, 228, 0.22);
+}
+.border-white\/10 {
+  border-color: rgba(246, 241, 228, 0.2);
+}
+.border-white\/15 {
+  border-color: rgba(246, 241, 228, 0.28);
 }
 
 @media print {
