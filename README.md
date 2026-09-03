@@ -84,7 +84,14 @@ a retried request on flaky venue wifi — can't both apply; the loser gets a
 - **Rate limiting**: `POST /api/packs/generate` (spends real Anthropic API
   credit) and `POST /api/packs/seed` are throttled per-IP
   (`src/lib/rate-limit.ts`) — an in-memory, single-instance limiter, which
-  matches this app's single-process deployment model.
+  matches this app's single-process deployment model. It keys on
+  `x-forwarded-for`/`x-real-ip`, which a direct caller can set to anything —
+  this assumes a trusted reverse proxy in front (e.g. Vercel's edge network)
+  that sets those headers itself and doesn't pass through a client-supplied
+  value. If this is ever exposed with no such proxy in front, the limiter
+  offers no real protection; that's a deployment-topology assumption worth
+  confirming before going further than this app's current single-operator
+  scale.
 - **`ADMIN_TOKEN`** (optional, see `.env.example`): if set, `DELETE
   /api/packs/[id]` requires it via an `x-admin-token` header. Nothing in the
   UI calls this route today; it exists to be reachable safely once something
@@ -127,19 +134,35 @@ and assert the scoreboard updates on both sides.
 ### Load test
 
 ```bash
-npm run dev                                   # in one terminal
-npm run load-test -- --teams=20 --base=http://localhost:3000   # in another
+npm run build && PORT=4933 npm run start        # production build, in one terminal
+npm run load-test -- --teams=20 --base=http://localhost:4933   # in another
 ```
 
 Simulates N teams joining a fresh session and polling every ~3s (like real
 phones) while a host driver advances the quiz to completion, printing
-latency stats for polls, answer submissions, and host advance calls. A
-20-team run against `next dev` (unoptimized, single SQLite writer) completed
-in ~70s with p95 poll latency around 2s; expect noticeably better numbers
-from a production build. Occasional `409 This question is no longer
-accepting answers` errors are expected — a team's submit racing the host's
-reveal — and the UI already surfaces them as a normal inline error rather
-than crashing.
+latency stats for polls, answer submissions, and host advance calls. Run
+against a **production build** (`next start`, not `next dev`) — dev mode's
+Turbopack JIT-compiles each route on first hit, so its numbers swing wildly
+with cache state and aren't a meaningful baseline either way.
+
+A 20-team run against a production build, after host-key auth and
+per-IP rate limiting landed in the request path, completed in ~26s with
+p95 poll latency ~118ms and p95 join latency ~496ms — comfortably fine at
+this app's target scale. (An earlier dev-mode run had cited p95 poll
+latency around 2s; that number was never a fair baseline and shouldn't be
+compared against this one — different mode, different warm/cold cache
+state, not a real before/after.)
+
+`409 This question is no longer accepting answers` errors are expected — a
+team's submit racing the host's reveal — and the UI already surfaces them
+as a normal inline error rather than crashing. The *count* of these errors
+scales with how fast the server responds relative to the load-test
+script's fixed timing constants (`THINK_TIME_MS`, `REVEAL_PAUSE_MS`): a
+faster server finishes the simulated night faster, so a fixed-duration
+"think time" eats a bigger share of a shorter game, and more teams get
+caught mid-answer at reveal. That's an artifact of the simulator's pacing,
+not a real-world degradation — real hosts don't reveal on a clock keyed to
+server response time.
 
 ## CI
 
