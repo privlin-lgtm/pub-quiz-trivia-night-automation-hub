@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Scoreboard } from "@/components/Scoreboard";
 import { StatusBadge } from "@/components/StatusBadge";
+import { TrophyIcon } from "@/components/icons";
+import { topScorers, winningNames } from "@/lib/scoreboard-summary";
 import { readHostToken, writeHostToken } from "@/lib/host-session";
 import type { HostSessionState, HostTeam } from "@/lib/api-types";
 
@@ -144,6 +146,9 @@ export function HostDashboard({ code }: { code: string }) {
     state.roundNumber >= state.totalRounds && state.questionNumber >= state.totalQuestionsInRound
       ? "End quiz"
       : "Next question";
+  const { winners, topScore } = topScorers(state.scoreboard);
+  const submissionsLabel =
+    state.status === "QUESTION_ACTIVE" || state.status === "REVEAL" ? "Live submissions" : "Teams";
 
   return (
     <div className="min-h-full bg-stage text-stage-fg">
@@ -229,17 +234,28 @@ export function HostDashboard({ code }: { code: string }) {
           ) : null}
 
           {state.status === "ENDED" ? (
-            <>
-              <h2 className="font-serif text-3xl font-semibold">That’s the night</h2>
-              <p className="mt-2 text-stage-muted">Final scores are on the right. Thanks for hosting.</p>
-            </>
+            <div className="motion-safe:animate-reveal">
+              <TrophyIcon className="h-9 w-9 text-gold" />
+              <p className="mt-4 text-xs font-semibold uppercase tracking-[0.2em] text-gold">
+                {winners.length > 1 ? "Tonight’s champions" : "Tonight’s champion"}
+              </p>
+              <h2 className="mt-2 font-serif text-4xl font-semibold leading-tight">{winningNames(winners)}</h2>
+              {winners.length > 0 ? (
+                <p className="mt-2 text-stage-muted">
+                  {topScore} {topScore === 1 ? "point" : "points"} · {state.totalRounds} rounds
+                </p>
+              ) : null}
+              <p className="mt-6 text-sm text-stage-muted">
+                That’s the night. Final standings are on the right — thanks for hosting.
+              </p>
+            </div>
           ) : null}
         </section>
 
         <aside className="space-y-6">
           <section className="rounded-2xl bg-white/5 p-5">
             <div className="flex items-center justify-between gap-3">
-              <h3 className="font-semibold">Live submissions</h3>
+              <h3 className="font-semibold">{submissionsLabel}</h3>
               <span className="text-sm text-stage-muted">
                 {submitted}/{state.teams.length}
               </span>

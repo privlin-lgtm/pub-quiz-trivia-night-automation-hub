@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Scoreboard } from "@/components/Scoreboard";
 import { StatusBadge } from "@/components/StatusBadge";
+import { TrophyIcon } from "@/components/icons";
+import { topScorers } from "@/lib/scoreboard-summary";
 import {
   clearStoredTeam,
   readStoredTeam,
@@ -295,9 +297,21 @@ function RevealPanel({ state }: { state: TeamSessionState }) {
 function EndedPanel({ state }: { state: TeamSessionState }) {
   const mine = state.scoreboard.find((row) => row.name === state.teamName);
   const place = mine ? state.scoreboard.findIndex((row) => row.teamId === mine.teamId) + 1 : null;
+  const { winners } = topScorers(state.scoreboard);
+  const isWinner = mine != null && winners.some((row) => row.teamId === mine.teamId);
   return (
-    <div className="flex flex-1 flex-col">
-      <h2 className="font-serif text-3xl font-semibold">Quiz over</h2>
+    <div className="flex flex-1 flex-col motion-safe:animate-reveal">
+      {isWinner ? (
+        <>
+          <TrophyIcon className="h-9 w-9 text-gold" />
+          <p className="mt-4 text-xs font-semibold uppercase tracking-[0.2em] text-gold">
+            {winners.length > 1 ? "You tied for the win!" : "You won!"}
+          </p>
+          <h2 className="mt-2 font-serif text-3xl font-semibold">Champions, {state.teamName}!</h2>
+        </>
+      ) : (
+        <h2 className="font-serif text-3xl font-semibold">Quiz over</h2>
+      )}
       <p className="mt-3 text-lg text-stage-muted">
         {place && mine
           ? `${state.teamName} finished ${ordinal(place)} with ${mine.score} ${mine.score === 1 ? "point" : "points"}.`
