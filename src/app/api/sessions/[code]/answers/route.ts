@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { SESSION_STATUS, getCurrentQuestion, packWithRoundsArgs, type PackWithRounds } from "@/lib/session-state";
 import { autoRevealIfExpired } from "@/lib/session-timer";
 import { isLikelyCorrect } from "@/lib/scoring";
+import { parseOptions, QUESTION_TYPE } from "@/lib/question-types";
 
 const submitSchema = z.object({
   token: z.string().min(1),
@@ -47,6 +48,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
   }
 
   const text = parsed.data.text.trim();
+
+  // A multiple-choice submission must be one of the actual options — this
+  // isn't about trusting the client's UI (it can't be bypassed to submit
+  // arbitrary text through this route), it's the same closed-choice contract
+  // the question itself defines.
+  if (question.type === QUESTION_TYPE.MULTIPLE_CHOICE) {
+    const options = parseOptions(question.options);
+    if (!options.includes(text)) {
+      return NextResponse.json({ error: "Answer must be one of the question's options" }, { status: 400 });
+    }
+  }
+
   const isCorrect = isLikelyCorrect(text, question.answer);
   const pointsAwarded = isCorrect ? question.points : 0;
 

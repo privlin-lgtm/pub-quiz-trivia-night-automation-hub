@@ -3,17 +3,44 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { Pack, Question } from "@/lib/api-types";
+import type { Pack, Question, QuestionType } from "@/lib/api-types";
 import { writeHostToken } from "@/lib/host-session";
 
-type Draft = Pick<Question, "text" | "answer" | "points">;
+type Draft = Pick<Question, "text" | "answer" | "points" | "type" | "options">;
+
+function draftsEqual(a: Draft, b: Draft): boolean {
+  return (
+    a.text === b.text &&
+    a.answer === b.answer &&
+    a.points === b.points &&
+    a.type === b.type &&
+    a.options.length === b.options.length &&
+    a.options.every((o, i) => o === b.options[i])
+  );
+}
+
+/** Same rule the PATCH route enforces server-side — checked here too so we
+ * only attempt an immediate save (add/remove/mark-correct option) once the
+ * draft is actually valid, instead of firing a network call that's certain
+ * to 400 while the host is still mid-edit (e.g. a freshly added blank row). */
+function isDraftSaveable(draft: Draft): boolean {
+  if (!draft.text.trim() || !draft.answer.trim()) return false;
+  if (draft.type === "MULTIPLE_CHOICE") {
+    const cleaned = Array.from(new Set(draft.options.map((o) => o.trim()).filter(Boolean)));
+    return cleaned.length >= 2 && cleaned.includes(draft.answer);
+  }
+  return true;
+}
 
 export function PackEditor({ pack }: { pack: Pack }) {
   const router = useRouter();
   const [drafts, setDrafts] = useState<Record<string, Draft>>(() =>
     Object.fromEntries(
       pack.rounds.flatMap((round) =>
-        round.questions.map((q) => [q.id, { text: q.text, answer: q.answer, points: q.points }])
+        round.questions.map((q) => [
+          q.id,
+          { text: q.text, answer: q.answer, points: q.points, type: q.type, options: q.options },
+        ])
       )
     )
   );
@@ -36,14 +63,25 @@ export function PackEditor({ pack }: { pack: Pack }) {
     setStatus((current) => ({ ...current, [id]: "idle" }));
   }
 
-  async function saveQuestion(id: string) {
-    const draft = drafts[id];
+  /** For interactions that should save immediately (toggling type, adding /
+   * removing / marking an option) rather than waiting for a blur — but only
+   * once the resulting draft is actually valid, so mid-edit states never
+   * flash an error. Takes the next draft explicitly rather than reading
+   * `drafts[id]` back after a `setDrafts` call, since that state update
+   * hasn't flushed yet when this runs. */
+  function commit(id: string, patch: Partial<Draft>) {
+    const next: Draft = { ...drafts[id], ...patch };
+    setDrafts((current) => ({ ...current, [id]: next }));
+    setStatus((current) => ({ ...current, [id]: "idle" }));
+    if (isDraftSaveable(next)) void saveQuestion(id, next);
+  }
+
+  async function saveQuestion(id: string, override?: Draft) {
+    const draft = override ?? drafts[id];
     const previous = saved[id];
     if (!draft || !previous) return;
-    if (draft.text === previous.text && draft.answer === previous.answer && draft.points === previous.points) {
-      return;
-    }
-    if (!draft.text.trim() || !draft.answer.trim()) {
+    if (draftsEqual(draft, previous)) return;
+    if (!isDraftSaveable(draft)) {
       setStatus((current) => ({ ...current, [id]: "error" }));
       return;
     }
@@ -52,7 +90,13 @@ export function PackEditor({ pack }: { pack: Pack }) {
     const res = await fetch(`/api/questions/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(draft),
+      body: JSON.stringify({
+        text: draft.text,
+        answer: draft.answer,
+        points: draft.points,
+        type: draft.type,
+        options: draft.type === "MULTIPLE_CHOICE" ? draft.options.map((o) => o.trim()).filter(Boolean) : undefined,
+      }),
     });
     if (!res.ok) {
       setStatus((current) => ({ ...current, [id]: "error" }));
@@ -60,6 +104,47 @@ export function PackEditor({ pack }: { pack: Pack }) {
     }
     setSaved((current) => ({ ...current, [id]: draft }));
     setStatus((current) => ({ ...current, [id]: "saved" }));
+  }
+
+  function setQuestionType(id: string, type: QuestionType) {
+    const draft = drafts[id];
+    if (type === draft.type) return;
+    if (type === "MULTIPLE_CHOICE") {
+      // Seed with the current answer as the first (correct) option, plus one
+      // blank slot to fill in — left as a local, unsaved edit until the host
+      // fills that second option in (see isDraftSaveable).
+      updateDraft(id, { type, options: draft.options.length >= 2 ? draft.options : [draft.answer, ""] });
+    } else {
+      // TEXT is always immediately valid (text/answer/points are unchanged),
+      // so this one saves right away, clearing the now-irrelevant options.
+      commit(id, { type, options: [] });
+    }
+  }
+
+  function updateOption(id: string, optionIndex: number, text: string) {
+    const draft = drafts[id];
+    const wasCorrect = draft.options[optionIndex] === draft.answer;
+    const nextOptions = draft.options.map((o, i) => (i === optionIndex ? text : o));
+    updateDraft(id, { options: nextOptions, answer: wasCorrect ? text : draft.answer });
+  }
+
+  function markOptionCorrect(id: string, optionIndex: number) {
+    const draft = drafts[id];
+    commit(id, { answer: draft.options[optionIndex] });
+  }
+
+  function addOption(id: string) {
+    const draft = drafts[id];
+    if (draft.options.length >= 6) return;
+    updateDraft(id, { options: [...draft.options, ""] });
+  }
+
+  function removeOption(id: string, optionIndex: number) {
+    const draft = drafts[id];
+    if (draft.options.length <= 2) return;
+    const removedText = draft.options[optionIndex];
+    const nextOptions = draft.options.filter((_, i) => i !== optionIndex);
+    commit(id, { options: nextOptions, answer: removedText === draft.answer ? nextOptions[0] : draft.answer });
   }
 
   async function startSession() {
@@ -151,8 +236,30 @@ export function PackEditor({ pack }: { pack: Pack }) {
                 const saveState = status[question.id] ?? "idle";
                 return (
                   <li key={question.id} className="grid gap-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-sm font-semibold">Q{question.index + 1}</span>
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm font-semibold">Q{question.index + 1}</span>
+                        <div className="flex rounded-lg border border-line bg-white p-0.5 text-xs font-medium">
+                          <button
+                            type="button"
+                            onClick={() => setQuestionType(question.id, "TEXT")}
+                            className={`rounded-md px-2.5 py-1 ${
+                              draft.type === "TEXT" ? "bg-foreground text-background" : "text-muted"
+                            }`}
+                          >
+                            Free text
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setQuestionType(question.id, "MULTIPLE_CHOICE")}
+                            className={`rounded-md px-2.5 py-1 ${
+                              draft.type === "MULTIPLE_CHOICE" ? "bg-foreground text-background" : "text-muted"
+                            }`}
+                          >
+                            Multiple choice
+                          </button>
+                        </div>
+                      </div>
                       <span className="text-xs text-muted">
                         {saveState === "saving"
                           ? "Saving…"
@@ -173,18 +280,68 @@ export function PackEditor({ pack }: { pack: Pack }) {
                         className="w-full rounded-lg border border-line bg-white px-3 py-2 text-base outline-none focus:ring-2 focus:ring-amber"
                       />
                     </label>
-                    <div className="grid gap-3 sm:grid-cols-[1fr_7rem]">
-                      <label className="block">
-                        <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-muted">
-                          Answer
+
+                    {draft.type === "MULTIPLE_CHOICE" ? (
+                      <div className="grid gap-2">
+                        <span className="text-xs font-medium uppercase tracking-wide text-muted">
+                          Options — mark the correct one
                         </span>
-                        <input
-                          value={draft.answer}
-                          onChange={(e) => updateDraft(question.id, { answer: e.target.value })}
-                          onBlur={() => saveQuestion(question.id)}
-                          className="h-11 w-full rounded-lg border border-line bg-white px-3 text-base outline-none focus:ring-2 focus:ring-amber"
-                        />
-                      </label>
+                        {draft.options.map((option, i) => (
+                          <div key={i} className="flex items-center gap-2">
+                            <input
+                              type="radio"
+                              name={`correct-${question.id}`}
+                              checked={option === draft.answer && option.trim().length > 0}
+                              onChange={() => markOptionCorrect(question.id, i)}
+                              disabled={!option.trim()}
+                              className="h-4 w-4 accent-amber"
+                              aria-label={`Option ${i + 1} is correct`}
+                            />
+                            <input
+                              value={option}
+                              onChange={(e) => updateOption(question.id, i, e.target.value)}
+                              onBlur={() => saveQuestion(question.id)}
+                              placeholder={`Option ${i + 1}`}
+                              className="h-10 w-full rounded-lg border border-line bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-amber"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeOption(question.id, i)}
+                              disabled={draft.options.length <= 2}
+                              className="h-10 w-10 shrink-0 rounded-lg border border-line text-muted disabled:opacity-30"
+                              aria-label={`Remove option ${i + 1}`}
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() => addOption(question.id)}
+                          disabled={draft.options.length >= 6}
+                          className="mt-1 h-9 w-fit rounded-lg border border-dashed border-line px-3 text-xs font-semibold text-muted disabled:opacity-40"
+                        >
+                          + Add option
+                        </button>
+                      </div>
+                    ) : null}
+
+                    <div className="grid gap-3 sm:grid-cols-[1fr_7rem]">
+                      {draft.type === "TEXT" ? (
+                        <label className="block">
+                          <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-muted">
+                            Answer
+                          </span>
+                          <input
+                            value={draft.answer}
+                            onChange={(e) => updateDraft(question.id, { answer: e.target.value })}
+                            onBlur={() => saveQuestion(question.id)}
+                            className="h-11 w-full rounded-lg border border-line bg-white px-3 text-base outline-none focus:ring-2 focus:ring-amber"
+                          />
+                        </label>
+                      ) : (
+                        <div />
+                      )}
                       <label className="block">
                         <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-muted">
                           Points

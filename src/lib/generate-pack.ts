@@ -33,6 +33,22 @@ const quizPackJsonSchema: Anthropic.Tool.InputSchema = {
                 text: { type: "string" },
                 answer: { type: "string" },
                 points: { type: "integer", minimum: 1, maximum: 10 },
+                type: {
+                  type: "string",
+                  enum: ["TEXT", "MULTIPLE_CHOICE"],
+                  description:
+                    "Almost always 'TEXT' (a free-text answer). Use 'MULTIPLE_CHOICE' only " +
+                    "occasionally for variety, and only when paired with 'options'.",
+                },
+                options: {
+                  type: "array",
+                  items: { type: "string" },
+                  minItems: 2,
+                  maxItems: 6,
+                  description:
+                    "Required when type is 'MULTIPLE_CHOICE', omitted otherwise. 2-6 short " +
+                    "choices, in no particular order, one of which must exactly equal 'answer'.",
+                },
               },
               required: ["text", "answer"],
             },
@@ -55,7 +71,9 @@ export async function generateQuizPack(userPrompt: string): Promise<GeneratedPac
       "You are a pub quiz question setter. Given a request describing the desired " +
       "rounds and topics, produce a complete, well-researched quiz pack. Each question " +
       "must have a single unambiguous factual answer. Vary difficulty within each round " +
-      "from easy to hard. Do not repeat questions or trivia facts across rounds. Call the " +
+      "from easy to hard. Do not repeat questions or trivia facts across rounds. Most " +
+      "questions should be free-text; sprinkle in the occasional multiple-choice question " +
+      "for variety, never more than one or two per round. Call the " +
       `${TOOL_NAME} tool exactly once with the full pack.`,
     tools: [
       {

@@ -208,6 +208,22 @@ export function HostDashboard({ code }: { code: string }) {
               <h2 className="mt-4 font-serif text-2xl font-semibold leading-snug sm:text-3xl">
                 {state.question?.text ?? "No question loaded"}
               </h2>
+              {state.question?.type === "MULTIPLE_CHOICE" && state.question.options.length > 0 ? (
+                <ul className="mt-4 grid gap-2 sm:grid-cols-2">
+                  {state.question.options.map((option, i) => (
+                    <li
+                      key={option}
+                      className={`rounded-lg px-3 py-2 text-sm ${
+                        state.question?.answer === option
+                          ? "bg-emerald-500/20 font-semibold text-emerald-200"
+                          : "bg-white/5"
+                      }`}
+                    >
+                      {String.fromCharCode(65 + i)}) {option}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
               {state.question?.answer ? (
                 <p className="mt-4 rounded-xl bg-emerald-500/15 px-4 py-3 font-semibold text-emerald-200">
                   Answer: {state.question.answer}

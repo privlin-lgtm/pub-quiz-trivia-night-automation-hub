@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Question" ADD COLUMN "type" TEXT NOT NULL DEFAULT 'TEXT';
+ALTER TABLE "Question" ADD COLUMN "options" TEXT;

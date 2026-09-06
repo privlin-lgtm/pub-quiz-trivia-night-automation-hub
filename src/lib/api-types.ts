@@ -6,12 +6,17 @@ export type PackSummary = {
   questionCount: number;
 };
 
+export type QuestionType = "TEXT" | "MULTIPLE_CHOICE";
+
 export type Question = {
   id: string;
   index: number;
   text: string;
   answer: string;
   points: number;
+  type: QuestionType;
+  /** Only meaningful when type is "MULTIPLE_CHOICE"; empty otherwise. */
+  options: string[];
 };
 
 export type Round = {
@@ -43,6 +48,9 @@ export type SessionQuestion = {
   text: string;
   points: number;
   answer: string | null;
+  type: QuestionType;
+  /** The choices to render for a MULTIPLE_CHOICE question; empty for TEXT. */
+  options: string[];
 };
 
 export type SessionRound = {

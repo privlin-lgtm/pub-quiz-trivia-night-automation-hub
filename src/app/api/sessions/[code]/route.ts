@@ -10,6 +10,7 @@ import {
 import { computeScoreboard } from "@/lib/scoreboard";
 import { isValidHostToken } from "@/lib/host-auth";
 import { autoRevealIfExpired } from "@/lib/session-timer";
+import { parseOptions, type QuestionType } from "@/lib/question-types";
 
 async function loadSession(code: string) {
   const session = await db.session.findUnique({
@@ -82,6 +83,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ code
           text: question.text,
           points: question.points,
           answer: revealAnswer ? question.answer : null,
+          type: question.type as QuestionType,
+          options: parseOptions(question.options),
         }
       : null,
     scoreboard: computeScoreboard(session.teams, session.answers),

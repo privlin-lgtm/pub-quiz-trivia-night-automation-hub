@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
+import { toQuestionView } from "@/lib/question-types";
 import { PrintPreview } from "./PrintPreview";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +23,10 @@ export default async function PrintPage({ params }: { params: Promise<{ id: stri
       pack={{
         ...pack,
         createdAt: pack.createdAt.toISOString(),
+        rounds: pack.rounds.map((round) => ({
+          ...round,
+          questions: round.questions.map(toQuestionView),
+        })),
       }}
     />
   );

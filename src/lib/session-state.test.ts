@@ -9,6 +9,8 @@ function question(index: number) {
     text: `Q${index}`,
     answer: `A${index}`,
     points: 1,
+    type: "TEXT",
+    options: null,
   };
 }
 

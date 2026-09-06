@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { wizardRequestSchema } from "@/lib/quiz-schema";
+import { generatedQuestionSchema, wizardRequestSchema } from "@/lib/quiz-schema";
 
 describe("wizardRequestSchema", () => {
   it("rejects an empty prompt", () => {
@@ -29,5 +29,48 @@ describe("wizardRequestSchema", () => {
 
   it("rejects a missing prompt field", () => {
     expect(wizardRequestSchema.safeParse({}).success).toBe(false);
+  });
+});
+
+describe("generatedQuestionSchema", () => {
+  it("defaults to type TEXT when omitted, requiring no options", () => {
+    const result = generatedQuestionSchema.safeParse({ text: "Q?", answer: "A" });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.type).toBe("TEXT");
+  });
+
+  it("accepts a well-formed multiple-choice question", () => {
+    const result = generatedQuestionSchema.safeParse({
+      text: "Capital of Australia?",
+      answer: "Canberra",
+      type: "MULTIPLE_CHOICE",
+      options: ["Sydney", "Canberra", "Melbourne"],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects multiple-choice with fewer than 2 options", () => {
+    const result = generatedQuestionSchema.safeParse({
+      text: "Q?",
+      answer: "A",
+      type: "MULTIPLE_CHOICE",
+      options: ["A"],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects multiple-choice whose options don't include the answer", () => {
+    const result = generatedQuestionSchema.safeParse({
+      text: "Q?",
+      answer: "A",
+      type: "MULTIPLE_CHOICE",
+      options: ["B", "C"],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects multiple-choice with no options at all", () => {
+    const result = generatedQuestionSchema.safeParse({ text: "Q?", answer: "A", type: "MULTIPLE_CHOICE" });
+    expect(result.success).toBe(false);
   });
 });

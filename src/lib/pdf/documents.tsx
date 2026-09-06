@@ -1,5 +1,8 @@
 import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
 import type { PackWithRounds } from "@/lib/session-state";
+import { parseOptions, QUESTION_TYPE } from "@/lib/question-types";
+
+type PdfQuestion = PackWithRounds["rounds"][number]["questions"][number];
 
 const styles = StyleSheet.create({
   page: { paddingTop: 40, paddingBottom: 48, paddingHorizontal: 44, fontSize: 11, fontFamily: "Times-Roman" },
@@ -14,6 +17,7 @@ const styles = StyleSheet.create({
   questionText: { flex: 1, lineHeight: 1.35 },
   answerKey: { flex: 1, color: "#14532d", fontFamily: "Times-Bold" },
   points: { width: 36, textAlign: "right", color: "#5c5348", fontSize: 9 },
+  optionsLine: { marginLeft: 22, marginBottom: 6, color: "#5c5348", fontSize: 10 },
   cue: {
     color: "#5c5348",
     fontStyle: "italic",
@@ -72,6 +76,13 @@ function Footer() {
   );
 }
 
+function OptionsLine({ question }: { question: PdfQuestion }) {
+  if (question.type !== QUESTION_TYPE.MULTIPLE_CHOICE) return null;
+  const options = parseOptions(question.options);
+  if (options.length === 0) return null;
+  return <Text style={styles.optionsLine}>{options.map((o, i) => `${String.fromCharCode(65 + i)}) ${o}`).join("   ")}</Text>;
+}
+
 export function QuestionSheetDocument({ pack }: { pack: PackWithRounds }) {
   return (
     <Document title={`${pack.title} - Questions`}>
@@ -91,6 +102,7 @@ export function QuestionSheetDocument({ pack }: { pack: PackWithRounds }) {
                   <Text style={styles.questionText}>{q.text}</Text>
                   <Text style={styles.points}>{q.points} pt</Text>
                 </View>
+                <OptionsLine question={q} />
                 <View style={styles.writeLine} />
               </View>
             ))}
@@ -159,6 +171,7 @@ export function PresenterScriptDocument({ pack }: { pack: PackWithRounds }) {
                   <Text style={styles.questionText}>{q.text}</Text>
                   <Text style={styles.points}>{q.points} pt</Text>
                 </View>
+                <OptionsLine question={q} />
                 <Text style={styles.answerBox}>Answer: {q.answer}</Text>
               </View>
             ))}

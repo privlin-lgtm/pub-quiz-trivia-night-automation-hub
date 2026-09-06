@@ -211,17 +211,39 @@ export function TeamPortal() {
               <Countdown timer={state.timer} dark />
             </div>
             <h2 className="mt-3 font-serif text-2xl font-semibold leading-snug">{state.question?.text}</h2>
-            <label className="mt-6 block flex-1">
-              <span className="text-sm font-medium">Your answer</span>
-              <textarea
-                value={answer}
-                onChange={(e) => setAnswer(e.target.value)}
-                rows={4}
-                maxLength={500}
-                className="mt-2 min-h-32 w-full rounded-xl border border-white/15 bg-white px-4 py-3 text-lg text-stage outline-none focus:ring-2 focus:ring-gold"
-                required
-              />
-            </label>
+            {state.question?.type === "MULTIPLE_CHOICE" ? (
+              <div className="mt-6 flex-1 space-y-3">
+                <span className="text-sm font-medium">Your answer</span>
+                <div className="grid gap-3">
+                  {state.question.options.map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      onClick={() => setAnswer(option)}
+                      className={`h-14 rounded-xl border px-4 text-left text-lg font-medium ${
+                        answer === option
+                          ? "border-gold bg-gold text-stage"
+                          : "border-white/15 bg-white text-stage"
+                      }`}
+                    >
+                      {option}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <label className="mt-6 block flex-1">
+                <span className="text-sm font-medium">Your answer</span>
+                <textarea
+                  value={answer}
+                  onChange={(e) => setAnswer(e.target.value)}
+                  rows={4}
+                  maxLength={500}
+                  className="mt-2 min-h-32 w-full rounded-xl border border-white/15 bg-white px-4 py-3 text-lg text-stage outline-none focus:ring-2 focus:ring-gold"
+                  required
+                />
+              </label>
+            )}
             <button
               type="submit"
               disabled={busy || answer.trim().length === 0}

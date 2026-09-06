@@ -3,7 +3,16 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeftIcon } from "@/components/icons";
-import type { Pack } from "@/lib/api-types";
+import type { Pack, Question } from "@/lib/api-types";
+
+function OptionsLine({ question }: { question: Question }) {
+  if (question.type !== "MULTIPLE_CHOICE" || question.options.length === 0) return null;
+  return (
+    <p className="mt-1 ml-6 text-sm text-muted">
+      {question.options.map((o, i) => `${String.fromCharCode(65 + i)}) ${o}`).join("   ")}
+    </p>
+  );
+}
 
 const TABS = [
   { id: "script", label: "Presenter script", type: "script" },
@@ -100,6 +109,7 @@ function ScriptLayout({ pack }: { pack: Pack }) {
                     {question.points} pt
                   </span>
                 </div>
+                <OptionsLine question={question} />
                 <p className="mt-2 ml-6 rounded-md bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-900">
                   Answer: {question.answer}
                 </p>
@@ -171,6 +181,7 @@ function QuestionLayout({ pack }: { pack: Pack }) {
                     {question.points} pt
                   </span>
                 </div>
+                <OptionsLine question={question} />
                 <div className="mt-2 ml-6 h-8 border-b border-line" />
               </li>
             ))}

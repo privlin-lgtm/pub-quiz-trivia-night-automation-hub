@@ -29,13 +29,20 @@ model Round {
 }
 
 model Question {
-  id       String @id @default(cuid())
-  round    Round  @relation(fields: [roundId], references: [id], onDelete: Cascade)
-  roundId  String
-  index    Int
-  text     String
-  answer   String
-  points   Int    @default(1)
+  id      String @id @default(cuid())
+  round   Round  @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  roundId String
+  index   Int
+  text    String
+  answer  String
+  points  Int    @default(1)
+  // "TEXT" (default) or "MULTIPLE_CHOICE". A MULTIPLE_CHOICE question stores
+  // its choices as a JSON-encoded string[] in `options` (see
+  // src/lib/question-types.ts) rather than a separate table — SQLite has no
+  // native array/JSON column, and nothing here queries inside the list.
+  // TEXT questions leave `options` null.
+  type    String  @default("TEXT")
+  options String?
 
   @@unique([roundId, index])
 }

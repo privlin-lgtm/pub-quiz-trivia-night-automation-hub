@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { SiteHeader } from "@/components/SiteHeader";
+import { toQuestionView } from "@/lib/question-types";
 import { PackEditor } from "./PackEditor";
 
 export const dynamic = "force-dynamic";
@@ -26,6 +27,10 @@ export default async function PackEditorPage({ params }: { params: Promise<{ id:
           pack={{
             ...pack,
             createdAt: pack.createdAt.toISOString(),
+            rounds: pack.rounds.map((round) => ({
+              ...round,
+              questions: round.questions.map(toQuestionView),
+            })),
           }}
         />
       </main>
