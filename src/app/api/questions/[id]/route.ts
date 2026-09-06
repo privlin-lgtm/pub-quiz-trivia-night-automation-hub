@@ -80,3 +80,39 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     },
   });
 }
+
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const existing = await db.question.findUnique({ where: { id } });
+  if (!existing) {
+    return NextResponse.json({ error: "Question not found" }, { status: 404 });
+  }
+
+  const siblingCount = await db.question.count({ where: { roundId: existing.roundId } });
+  if (siblingCount <= 1) {
+    return NextResponse.json({ error: "A round needs at least one question" }, { status: 400 });
+  }
+
+  // Question.index must stay a contiguous 0..n-1 run within its round (the
+  // live session state machine walks it by position — see
+  // computeNextPosition in session-state.ts), so deleting one requires
+  // shifting every later question down to close the gap. Done inside a
+  // transaction, in ascending index order, so each update lands on a slot
+  // the deletion (or the previous iteration) has already vacated — never on
+  // one still held by another row — which keeps every step compatible with
+  // the @@unique([roundId, index]) constraint even without deferred checks.
+  await db.$transaction(async (tx) => {
+    await tx.question.delete({ where: { id } });
+    const remaining = await tx.question.findMany({
+      where: { roundId: existing.roundId },
+      orderBy: { index: "asc" },
+    });
+    for (let i = 0; i < remaining.length; i++) {
+      if (remaining[i].index !== i) {
+        await tx.question.update({ where: { id: remaining[i].id }, data: { index: i } });
+      }
+    }
+  });
+
+  return NextResponse.json({ ok: true });
+}

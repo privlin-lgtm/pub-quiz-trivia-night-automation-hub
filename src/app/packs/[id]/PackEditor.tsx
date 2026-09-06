@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { Pack, Question, QuestionType } from "@/lib/api-types";
+import type { Pack, Question, QuestionType, Round } from "@/lib/api-types";
 import { writeHostToken } from "@/lib/host-session";
 
 type Draft = Pick<Question, "text" | "answer" | "points" | "type" | "options"> & {
@@ -39,38 +39,48 @@ function isDraftSaveable(draft: Draft): boolean {
   return true;
 }
 
+function draftFromQuestion(q: Question): Draft {
+  return {
+    text: q.text,
+    answer: q.answer,
+    points: q.points,
+    type: q.type,
+    options: q.options,
+    acceptableAnswersText: q.acceptableAnswers.join(", "),
+  };
+}
+
+function omitKey<T>(record: Record<string, T>, key: string): Record<string, T> {
+  const next = { ...record };
+  delete next[key];
+  return next;
+}
+
 export function PackEditor({ pack }: { pack: Pack }) {
   const router = useRouter();
+  // The pack's own structure (which rounds, which questions, in what order)
+  // lives in state, separate from `drafts` below (which only tracks each
+  // existing question's in-progress field edits) — add/delete/reorder change
+  // *this*, never `drafts` directly.
+  const [rounds, setRounds] = useState<Round[]>(pack.rounds);
   const [drafts, setDrafts] = useState<Record<string, Draft>>(() =>
-    Object.fromEntries(
-      pack.rounds.flatMap((round) =>
-        round.questions.map((q) => [
-          q.id,
-          {
-            text: q.text,
-            answer: q.answer,
-            points: q.points,
-            type: q.type,
-            options: q.options,
-            acceptableAnswersText: q.acceptableAnswers.join(", "),
-          },
-        ])
-      )
-    )
+    Object.fromEntries(pack.rounds.flatMap((round) => round.questions.map((q) => [q.id, draftFromQuestion(q)])))
   );
   const [saved, setSaved] = useState<Record<string, Draft>>(() => ({ ...drafts }));
   const [status, setStatus] = useState<Record<string, "idle" | "saving" | "saved" | "error">>({});
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Two-step confirm for destructive actions (delete question/round): the
+  // first click arms it (stores a "q:<id>" or "r:<id>" tag here), a second
+  // click on the same button while armed actually performs the delete. No
+  // native confirm() dialog, matching the rest of the app's UI.
+  const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
   // "" means no timer (manual reveal) — kept as the default so a host who
   // never touches this still gets the exact behavior the app shipped with
   // before per-question timers existed.
   const [duration, setDuration] = useState("");
 
-  const questionCount = useMemo(
-    () => pack.rounds.reduce((sum, round) => sum + round.questions.length, 0),
-    [pack.rounds]
-  );
+  const questionCount = useMemo(() => rounds.reduce((sum, round) => sum + round.questions.length, 0), [rounds]);
 
   function updateDraft(id: string, patch: Partial<Draft>) {
     setDrafts((current) => ({ ...current, [id]: { ...current[id], ...patch } }));
@@ -172,6 +182,104 @@ export function PackEditor({ pack }: { pack: Pack }) {
     commit(id, { options: nextOptions, answer: removedText === draft.answer ? nextOptions[0] : draft.answer });
   }
 
+  async function addQuestion(roundId: string) {
+    setError(null);
+    const res = await fetch("/api/questions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ roundId }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setError(data.error ?? "Could not add question");
+      return;
+    }
+    const question: Question = data.question;
+    setRounds((current) =>
+      current.map((round) =>
+        round.id === roundId ? { ...round, questions: [...round.questions, question] } : round
+      )
+    );
+    const draft = draftFromQuestion(question);
+    setDrafts((current) => ({ ...current, [question.id]: draft }));
+    setSaved((current) => ({ ...current, [question.id]: draft }));
+  }
+
+  async function deleteQuestion(roundId: string, questionId: string) {
+    const tag = `q:${questionId}`;
+    if (confirmingDelete !== tag) {
+      setConfirmingDelete(tag);
+      return;
+    }
+    setError(null);
+    const res = await fetch(`/api/questions/${questionId}`, { method: "DELETE" });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error ?? "Could not delete question");
+      setConfirmingDelete(null);
+      return;
+    }
+    setRounds((current) =>
+      current.map((round) =>
+        round.id === roundId
+          ? {
+              ...round,
+              questions: round.questions.filter((q) => q.id !== questionId).map((q, i) => ({ ...q, index: i })),
+            }
+          : round
+      )
+    );
+    setDrafts((current) => omitKey(current, questionId));
+    setSaved((current) => omitKey(current, questionId));
+    setStatus((current) => omitKey(current, questionId));
+    setConfirmingDelete(null);
+  }
+
+  async function deleteRound(roundId: string) {
+    const tag = `r:${roundId}`;
+    if (confirmingDelete !== tag) {
+      setConfirmingDelete(tag);
+      return;
+    }
+    setError(null);
+    const res = await fetch(`/api/rounds/${roundId}`, { method: "DELETE" });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error ?? "Could not delete round");
+      setConfirmingDelete(null);
+      return;
+    }
+    const removedIds = rounds.find((r) => r.id === roundId)?.questions.map((q) => q.id) ?? [];
+    setRounds((current) => current.filter((r) => r.id !== roundId).map((r, i) => ({ ...r, index: i })));
+    setDrafts((current) => removedIds.reduce(omitKey, current));
+    setSaved((current) => removedIds.reduce(omitKey, current));
+    setStatus((current) => removedIds.reduce(omitKey, current));
+    setConfirmingDelete(null);
+  }
+
+  async function moveRound(roundId: string, direction: "up" | "down") {
+    setError(null);
+    const res = await fetch(`/api/rounds/${roundId}/move`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ direction }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setError(data.error ?? "Could not reorder round");
+      return;
+    }
+    if (!data.moved) return;
+    setRounds((current) => {
+      const i = current.findIndex((r) => r.id === roundId);
+      const j = direction === "up" ? i - 1 : i + 1;
+      if (i === -1 || j < 0 || j >= current.length) return current;
+      const next = [...current];
+      [next[i], next[j]] = [next[j], next[i]];
+      return next.map((r, idx) => ({ ...r, index: idx }));
+    });
+  }
+
   async function startSession() {
     setStarting(true);
     setError(null);
@@ -245,14 +353,58 @@ export function PackEditor({ pack }: { pack: Pack }) {
       {error ? <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p> : null}
 
       <div className="mt-8 space-y-8">
-        {pack.rounds.map((round) => (
+        {rounds.map((round, roundIndex) => (
           <section key={round.id} className="paper-sheet rounded-xl border border-line p-5 sm:p-6">
-            <div className="border-b border-line pb-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber">
-                Round {round.index + 1}
-              </p>
-              <h2 className="mt-1 text-xl font-semibold">{round.title}</h2>
-              <p className="text-sm text-muted">{round.category}</p>
+            <div className="flex items-start justify-between gap-4 border-b border-line pb-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber">
+                  Round {round.index + 1}
+                </p>
+                <h2 className="mt-1 text-xl font-semibold">{round.title}</h2>
+                <p className="text-sm text-muted">{round.category}</p>
+              </div>
+              <div className="flex shrink-0 items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => moveRound(round.id, "up")}
+                  disabled={roundIndex === 0}
+                  aria-label="Move round up"
+                  className="h-9 w-9 rounded-lg border border-line text-muted disabled:opacity-30"
+                >
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  onClick={() => moveRound(round.id, "down")}
+                  disabled={roundIndex === rounds.length - 1}
+                  aria-label="Move round down"
+                  className="h-9 w-9 rounded-lg border border-line text-muted disabled:opacity-30"
+                >
+                  ↓
+                </button>
+                <button
+                  type="button"
+                  onClick={() => deleteRound(round.id)}
+                  disabled={rounds.length <= 1}
+                  className={`h-9 rounded-lg border px-3 text-xs font-semibold disabled:opacity-30 ${
+                    confirmingDelete === `r:${round.id}`
+                      ? "border-red-300 bg-red-50 text-red-700"
+                      : "border-line text-muted"
+                  }`}
+                  title={rounds.length <= 1 ? "A pack needs at least one round" : undefined}
+                >
+                  {confirmingDelete === `r:${round.id}` ? "Confirm delete round?" : "Delete round"}
+                </button>
+                {confirmingDelete === `r:${round.id}` ? (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmingDelete(null)}
+                    className="h-9 rounded-lg px-2 text-xs font-semibold text-muted"
+                  >
+                    Cancel
+                  </button>
+                ) : null}
+              </div>
             </div>
 
             <ul className="mt-5 space-y-6">
@@ -285,15 +437,39 @@ export function PackEditor({ pack }: { pack: Pack }) {
                           </button>
                         </div>
                       </div>
-                      <span className="text-xs text-muted">
-                        {saveState === "saving"
-                          ? "Saving…"
-                          : saveState === "saved"
-                            ? "Saved"
-                            : saveState === "error"
-                              ? "Couldn’t save"
-                              : "Edits save on blur"}
-                      </span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs text-muted">
+                          {saveState === "saving"
+                            ? "Saving…"
+                            : saveState === "saved"
+                              ? "Saved"
+                              : saveState === "error"
+                                ? "Couldn’t save"
+                                : "Edits save on blur"}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => deleteQuestion(round.id, question.id)}
+                          disabled={round.questions.length <= 1}
+                          className={`h-8 rounded-lg border px-2.5 text-xs font-semibold disabled:opacity-30 ${
+                            confirmingDelete === `q:${question.id}`
+                              ? "border-red-300 bg-red-50 text-red-700"
+                              : "border-line text-muted"
+                          }`}
+                          title={round.questions.length <= 1 ? "A round needs at least one question" : undefined}
+                        >
+                          {confirmingDelete === `q:${question.id}` ? "Confirm?" : "Delete"}
+                        </button>
+                        {confirmingDelete === `q:${question.id}` ? (
+                          <button
+                            type="button"
+                            onClick={() => setConfirmingDelete(null)}
+                            className="text-xs font-semibold text-muted"
+                          >
+                            Cancel
+                          </button>
+                        ) : null}
+                      </div>
                     </div>
                     <label className="block">
                       <span className="sr-only">Question text</span>
@@ -406,6 +582,13 @@ export function PackEditor({ pack }: { pack: Pack }) {
                 );
               })}
             </ul>
+            <button
+              type="button"
+              onClick={() => addQuestion(round.id)}
+              className="mt-5 h-10 w-fit rounded-lg border border-dashed border-line px-4 text-sm font-semibold text-muted"
+            >
+              + Add question
+            </button>
           </section>
         ))}
       </div>
