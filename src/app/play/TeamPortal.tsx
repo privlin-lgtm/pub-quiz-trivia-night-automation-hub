@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { Countdown } from "@/components/Countdown";
 import { Scoreboard } from "@/components/Scoreboard";
 import { StatusBadge } from "@/components/StatusBadge";
 import { TrophyIcon } from "@/components/icons";
@@ -205,7 +206,10 @@ export function TeamPortal() {
 
         {state?.status === "QUESTION_ACTIVE" ? (
           <form onSubmit={submitAnswer} className="flex flex-1 flex-col">
-            <RoundKicker state={state} />
+            <div className="flex items-start justify-between gap-3">
+              <RoundKicker state={state} />
+              <Countdown timer={state.timer} dark />
+            </div>
             <h2 className="mt-3 font-serif text-2xl font-semibold leading-snug">{state.question?.text}</h2>
             <label className="mt-6 block flex-1">
               <span className="text-sm font-medium">Your answer</span>

@@ -21,6 +21,10 @@ export function PackEditor({ pack }: { pack: Pack }) {
   const [status, setStatus] = useState<Record<string, "idle" | "saving" | "saved" | "error">>({});
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // "" means no timer (manual reveal) — kept as the default so a host who
+  // never touches this still gets the exact behavior the app shipped with
+  // before per-question timers existed.
+  const [duration, setDuration] = useState("");
 
   const questionCount = useMemo(
     () => pack.rounds.reduce((sum, round) => sum + round.questions.length, 0),
@@ -65,7 +69,10 @@ export function PackEditor({ pack }: { pack: Pack }) {
       const res = await fetch("/api/sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ packId: pack.id }),
+        body: JSON.stringify({
+          packId: pack.id,
+          questionDurationSeconds: duration ? Number(duration) : null,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Could not start session");
@@ -93,13 +100,27 @@ export function PackEditor({ pack }: { pack: Pack }) {
             {pack.rounds.length} rounds · {questionCount} questions
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Link
             href={`/packs/${pack.id}/print`}
             className="inline-flex h-11 items-center rounded-xl border border-line bg-white px-4 text-sm font-semibold"
           >
             Print preview
           </Link>
+          <label className="flex items-center gap-2 text-sm text-muted">
+            <span className="sr-only">Per-question timer</span>
+            <select
+              value={duration}
+              onChange={(e) => setDuration(e.target.value)}
+              className="h-11 rounded-xl border border-line bg-white px-3 text-sm font-medium outline-none focus:ring-2 focus:ring-amber"
+            >
+              <option value="">No timer (manual reveal)</option>
+              <option value="20">20s per question</option>
+              <option value="30">30s per question</option>
+              <option value="45">45s per question</option>
+              <option value="60">60s per question</option>
+            </select>
+          </label>
           <button
             type="button"
             onClick={startSession}

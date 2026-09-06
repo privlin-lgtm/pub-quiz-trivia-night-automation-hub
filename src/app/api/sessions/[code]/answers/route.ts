@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { SESSION_STATUS, getCurrentQuestion, packWithRoundsArgs, type PackWithRounds } from "@/lib/session-state";
+import { autoRevealIfExpired } from "@/lib/session-timer";
 import { isLikelyCorrect } from "@/lib/scoring";
 
 const submitSchema = z.object({
@@ -17,10 +18,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     return NextResponse.json({ error: "Invalid answer" }, { status: 400 });
   }
 
-  const session = await db.session.findUnique({ where: { code: code.toUpperCase() } });
+  let session = await db.session.findUnique({ where: { code: code.toUpperCase() } });
   if (!session) {
     return NextResponse.json({ error: "Session not found" }, { status: 404 });
   }
+  // A submission racing the timer's expiry should lose: check (and, if
+  // needed, apply) the auto-reveal first so a request that arrives just past
+  // the deadline is rejected instead of quietly scoring after time's up.
+  session = await autoRevealIfExpired(session);
   if (session.status !== SESSION_STATUS.QUESTION_ACTIVE) {
     return NextResponse.json({ error: "This question is no longer accepting answers" }, { status: 409 });
   }

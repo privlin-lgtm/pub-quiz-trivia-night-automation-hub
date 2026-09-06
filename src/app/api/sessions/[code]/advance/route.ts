@@ -18,6 +18,8 @@ const publicSessionSelect = {
   status: true,
   currentRoundIndex: true,
   currentQuestionIndex: true,
+  questionDurationSeconds: true,
+  questionStartedAt: true,
   createdAt: true,
 } as const;
 
@@ -59,7 +61,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     }
     const { count } = await db.session.updateMany({
       where: { id: session.id, status: SESSION_STATUS.LOBBY },
-      data: { status: SESSION_STATUS.QUESTION_ACTIVE, currentRoundIndex: 0, currentQuestionIndex: 0 },
+      data: {
+        status: SESSION_STATUS.QUESTION_ACTIVE,
+        currentRoundIndex: 0,
+        currentQuestionIndex: 0,
+        questionStartedAt: new Date(),
+      },
     });
     if (count === 0) {
       return NextResponse.json({ error: "Quiz already started" }, { status: 409 });
@@ -103,6 +110,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
           status: SESSION_STATUS.QUESTION_ACTIVE,
           currentRoundIndex: next.roundIndex,
           currentQuestionIndex: next.questionIndex,
+          questionStartedAt: new Date(),
         }
       : { status: SESSION_STATUS.ENDED },
   });

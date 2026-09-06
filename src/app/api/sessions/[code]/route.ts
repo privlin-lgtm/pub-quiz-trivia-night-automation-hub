@@ -9,6 +9,7 @@ import {
 } from "@/lib/session-state";
 import { computeScoreboard } from "@/lib/scoreboard";
 import { isValidHostToken } from "@/lib/host-auth";
+import { autoRevealIfExpired } from "@/lib/session-timer";
 
 async function loadSession(code: string) {
   const session = await db.session.findUnique({
@@ -16,12 +17,18 @@ async function loadSession(code: string) {
     include: { teams: true, answers: true },
   });
   if (!session) return null;
+
+  // Lazily flip an expired question to REVEAL on whoever polls next — host
+  // or team, no separate cron/timer process needed.
+  const timerResult = await autoRevealIfExpired(session);
+  const effectiveSession = timerResult.status === session.status ? session : { ...session, status: timerResult.status };
+
   const pack = (await db.quizPack.findUnique({
-    where: { id: session.packId },
+    where: { id: effectiveSession.packId },
     ...packWithRoundsArgs,
   })) as PackWithRounds | null;
   if (!pack) return null;
-  return { session, pack };
+  return { session: effectiveSession, pack };
 }
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ code: string }> }) {
@@ -78,6 +85,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ code
         }
       : null,
     scoreboard: computeScoreboard(session.teams, session.answers),
+    timer:
+      session.questionDurationSeconds != null && session.questionStartedAt != null
+        ? { startedAt: session.questionStartedAt.toISOString(), durationSeconds: session.questionDurationSeconds }
+        : null,
   };
 
   if (asHost) {

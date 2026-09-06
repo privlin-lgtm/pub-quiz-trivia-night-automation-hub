@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { Countdown } from "@/components/Countdown";
 import { Scoreboard } from "@/components/Scoreboard";
 import { StatusBadge } from "@/components/StatusBadge";
 import { TrophyIcon } from "@/components/icons";
@@ -191,6 +192,11 @@ export function HostDashboard({ code }: { code: string }) {
 
           {state.status === "QUESTION_ACTIVE" || state.status === "REVEAL" ? (
             <>
+              {state.status === "QUESTION_ACTIVE" ? (
+                <div className="flex justify-end">
+                  <Countdown timer={state.timer} dark />
+                </div>
+              ) : null}
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gold">
                 Round {state.roundNumber} of {state.totalRounds}
                 {state.round ? ` · ${state.round.title}` : ""}

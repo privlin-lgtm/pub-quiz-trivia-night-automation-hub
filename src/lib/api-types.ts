@@ -50,6 +50,12 @@ export type SessionRound = {
   category: string;
 };
 
+/** Null means no timer for this session — manual reveal only. */
+export type TimerInfo = {
+  startedAt: string;
+  durationSeconds: number;
+} | null;
+
 export type HostTeam = {
   id: string;
   name: string;
@@ -72,6 +78,7 @@ export type HostSessionState = {
   round: SessionRound | null;
   question: SessionQuestion | null;
   scoreboard: ScoreboardRow[];
+  timer: TimerInfo;
   teams: HostTeam[];
 };
 
@@ -86,6 +93,7 @@ export type TeamSessionState = {
   round: SessionRound | null;
   question: SessionQuestion | null;
   scoreboard: ScoreboardRow[];
+  timer: TimerInfo;
   teamName: string;
   myAnswer: {
     text: string;

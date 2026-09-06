@@ -28,8 +28,16 @@ describe("GET /api/packs/[id]/pdf", () => {
   beforeAll(async () => {
     // A dedicated pack, not the shared idempotent /api/packs/seed one —
     // this suite mutates a question below, and that must not leak into
-    // whatever other test files see when they seed the demo pack.
-    const pack = await createPackFromGenerated(DEMO_PACK, DEMO_PACK_PROMPT);
+    // whatever other test files see when they seed the demo pack. The title
+    // must differ too: /api/packs/seed reuses *any* pack matching
+    // DEMO_PACK.title (see its findFirst), so reusing that title here let
+    // this suite's mutated pack get silently picked up by other test files'
+    // seed calls whenever this file happened to run first — a real,
+    // intermittent cross-file test-order bug, not a one-off flake.
+    const pack = await createPackFromGenerated(
+      { ...DEMO_PACK, title: "PDF Route Test Pack (dedicated — not the shared seed pack)" },
+      DEMO_PACK_PROMPT
+    );
     packId = pack.id;
     questionId = pack.rounds[0].questions[0].id;
   });
@@ -103,7 +111,13 @@ describe("PATCH /api/questions/[id]", () => {
   let questionId: string;
 
   beforeAll(async () => {
-    const pack = await createPackFromGenerated(DEMO_PACK, DEMO_PACK_PROMPT);
+    // Same reasoning as the pdf describe block above: a distinct title keeps
+    // this suite's mutated pack (points changed to 5 below) from being
+    // picked up by /api/packs/seed's findFirst-by-title in other test files.
+    const pack = await createPackFromGenerated(
+      { ...DEMO_PACK, title: "PATCH Question Test Pack (dedicated — not the shared seed pack)" },
+      DEMO_PACK_PROMPT
+    );
     questionId = pack.rounds[0].questions[1].id;
   });
 

@@ -5,6 +5,9 @@ import { z } from "zod";
 
 const createSessionSchema = z.object({
   packId: z.string().min(1),
+  // A session-level knob, not per-question: every question in the session
+  // gets the same countdown. Omitted or null means no timer (manual reveal).
+  questionDurationSeconds: z.number().int().positive().max(600).nullish(),
 });
 
 export async function POST(req: NextRequest) {
@@ -34,7 +37,12 @@ export async function POST(req: NextRequest) {
 
   const hostToken = generateHostToken();
   const session = await db.session.create({
-    data: { packId: pack.id, code, hostToken },
+    data: {
+      packId: pack.id,
+      code,
+      hostToken,
+      questionDurationSeconds: parsed.data.questionDurationSeconds ?? null,
+    },
   });
 
   // hostToken is returned once, here, and never included in any other
