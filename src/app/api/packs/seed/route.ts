@@ -7,7 +7,7 @@ import { rateLimit } from "@/lib/rate-limit";
 export async function POST(req: NextRequest) {
   // Cheap to call (no AI, no external cost) but still unauthenticated and
   // writes to the DB, so it gets a generous but real ceiling against spam.
-  const limited = rateLimit(req, "packs:seed", { limit: 20, windowMs: 10 * 60 * 1000 });
+  const limited = await rateLimit(req, "packs:seed", { limit: 20, windowMs: 10 * 60 * 1000 });
   if (!limited.allowed) {
     return NextResponse.json(
       { error: "Too many demo packs created recently. Please wait a bit and try again." },

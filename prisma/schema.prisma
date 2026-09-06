@@ -2,6 +2,11 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// The actual connection (local file, or a hosted Turso database) is
+// configured via the libSQL driver adapter in prisma.config.ts (CLI) and
+// src/lib/db.ts (app runtime) — see .env.example. `url` still has to name
+// an env var here (Prisma's schema validator requires the datasource block
+// to have one), but its value is never read in adapter mode.
 datasource db {
   provider = "sqlite"
   url      = env("DATABASE_URL")

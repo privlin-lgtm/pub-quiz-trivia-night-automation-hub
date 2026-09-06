@@ -24,7 +24,8 @@ throwaway DB and dev server, so it never touches `prisma/dev.db`).
 ## Stack
 
 - Next.js (TypeScript, App Router, Tailwind)
-- Prisma + SQLite
+- Prisma + SQLite/libSQL (local file for dev, Turso for a real deploy — same
+  code either way, see Deployment below)
 - Anthropic (Claude) API for quiz generation (structured tool-use output)
 - `@react-pdf/renderer` for PDF export
 - Vitest for unit tests
@@ -40,6 +41,33 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
+
+## Deployment
+
+The default `.env` setup (a local SQLite file, an in-memory rate limiter) is
+right for local dev or a single long-running process, but not for a
+serverless host — an ephemeral/read-only filesystem has nowhere to write a
+SQLite file, and each invocation can be a fresh cold instance with its own
+memory, so neither survives past one request. Both pieces are swappable
+purely through environment variables — no code changes:
+
+- **Database**: Prisma connects via a libSQL driver adapter
+  (`prisma.config.ts` for the CLI, `src/lib/db.ts` for the app itself), which
+  speaks the same protocol against a local file or a real hosted database.
+  Create one with [Turso](https://turso.tech) (`turso db create <name>`),
+  then set `DATABASE_URL` to its `libsql://...` URL and `DATABASE_AUTH_TOKEN`
+  to a token from `turso db tokens create <name>`. Run
+  `npx prisma migrate deploy` once against that URL before first traffic.
+- **Rate limiting**: set `UPSTASH_REDIS_REST_URL` and
+  `UPSTASH_REDIS_REST_TOKEN` (from a free database at
+  [Upstash](https://console.upstash.com)) and `src/lib/rate-limit.ts`
+  automatically switches from its in-memory fallback to a real shared store,
+  so the limit is enforced across every instance instead of resetting per
+  cold start.
+
+Leaving either pair of env vars unset keeps today's local-dev behavior
+(a `prisma/dev.db` file, an in-process limiter) — both are additive, not a
+breaking config change.
 
 No API key yet? `POST /api/packs/seed` creates a small static demo pack so you
 can exercise the editor, PDF export, and live session flow without calling
@@ -83,12 +111,15 @@ a retried request on flaky venue wifi — can't both apply; the loser gets a
   form rather than a hard lockout.
 - **Rate limiting**: `POST /api/packs/generate` (spends real Anthropic API
   credit) and `POST /api/packs/seed` are throttled per-IP
-  (`src/lib/rate-limit.ts`) — an in-memory, single-instance limiter, which
-  matches this app's single-process deployment model. It keys on
-  `x-forwarded-for`/`x-real-ip`, which a direct caller can set to anything —
-  this assumes a trusted reverse proxy in front (e.g. Vercel's edge network)
-  that sets those headers itself and doesn't pass through a client-supplied
-  value. If this is ever exposed with no such proxy in front, the limiter
+  (`src/lib/rate-limit.ts`) — backed by Upstash Redis when
+  `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` are set (see
+  Deployment above), or an in-memory, single-instance Map otherwise, which
+  is fine for local dev but not a real multi-instance deployment target. It
+  keys on `x-forwarded-for`/`x-real-ip`, which a direct caller can set to
+  anything — this assumes a trusted reverse proxy in front (e.g. Vercel's
+  edge network) that sets those headers itself and doesn't pass through a
+  client-supplied value. If this is ever exposed with no such proxy in
+  front, the limiter
   offers no real protection; that's a deployment-topology assumption worth
   confirming before going further than this app's current single-operator
   scale.
@@ -172,12 +203,13 @@ tests, and the Playwright E2E test on every push/PR — no secrets required
 
 ## Known limitations
 
-- SQLite is single-writer; fine at this app's target scale (tens of teams,
-  one session at a time) but would need to move to Postgres for a
-  multi-tenant deployment (low-effort swap via Prisma).
-- The in-memory rate limiter and the `hostToken`/`ADMIN_TOKEN` model assume
-  a single-process deployment and one operator, not a distributed multi-tenant
-  service.
+- SQLite (or Turso/libSQL — see Deployment) is single-writer; fine at this
+  app's target scale (tens of teams, one session at a time) but would need
+  to move to Postgres for a multi-tenant deployment (low-effort swap via
+  Prisma).
+- The `hostToken`/`ADMIN_TOKEN` model assumes one operator per deployment,
+  not a distributed multi-tenant service — that's unchanged regardless of
+  which database/rate-limiter backend is configured.
 - `npm audit` reports 3 high-severity findings, all from the same
   dev-time-only chain (`prisma` CLI → `@prisma/config` → `deepmerge-ts`, a
   stack-exhaustion issue). Not reachable by the running app; no fix is

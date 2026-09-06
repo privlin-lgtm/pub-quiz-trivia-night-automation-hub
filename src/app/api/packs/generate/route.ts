@@ -8,7 +8,7 @@ import { MissingApiKeyError } from "@/lib/anthropic";
 export async function POST(req: NextRequest) {
   // Each call spends real Anthropic API credit, so this is throttled
   // per-IP to bound the cost of a scripted abuse loop hitting a public URL.
-  const limited = rateLimit(req, "packs:generate", { limit: 5, windowMs: 10 * 60 * 1000 });
+  const limited = await rateLimit(req, "packs:generate", { limit: 5, windowMs: 10 * 60 * 1000 });
   if (!limited.allowed) {
     return NextResponse.json(
       { error: "Too many quiz packs generated recently. Please wait a bit and try again." },

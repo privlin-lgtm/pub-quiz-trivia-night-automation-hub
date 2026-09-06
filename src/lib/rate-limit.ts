@@ -1,29 +1,70 @@
 import type { NextRequest } from "next/server";
+import { Redis } from "@upstash/redis";
 
 /**
- * Minimal in-memory fixed-window rate limiter. Deliberately not
- * distributed/persistent — this app runs as a single instance (single
- * SQLite file), so an in-process Map is proportionate. It resets on
- * restart/redeploy; that's an acceptable trade-off at this app's scale
- * (one operator's own deployment), not a multi-tenant SaaS guarantee.
+ * Upstash Redis when configured (UPSTASH_REDIS_REST_URL/TOKEN in
+ * .env.example) — a real shared store, so limits are actually enforced
+ * across every serverless instance rather than reset per cold start.
+ * Falls back to an in-process Map otherwise, which is fine for local dev
+ * (or a genuinely single, long-running process) but not for a real
+ * multi-instance deploy: each instance gets its own counters, and a
+ * redeploy/cold start wipes them.
  */
-const buckets = new Map<string, { count: number; resetAt: number }>();
+const redis =
+  process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
+    ? new Redis({ url: process.env.UPSTASH_REDIS_REST_URL, token: process.env.UPSTASH_REDIS_REST_TOKEN })
+    : null;
 
-export function rateLimit(
+const memoryBuckets = new Map<string, { count: number; resetAt: number }>();
+
+function clientIp(req: NextRequest): string {
+  return (
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    req.headers.get("x-real-ip") ||
+    "unknown"
+  );
+}
+
+export async function rateLimit(
   req: NextRequest,
   key: string,
   { limit, windowMs }: { limit: number; windowMs: number }
-): { allowed: boolean; retryAfterSeconds: number } {
-  const ip =
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    req.headers.get("x-real-ip") ||
-    "unknown";
-  const bucketKey = `${key}:${ip}`;
-  const now = Date.now();
+): Promise<{ allowed: boolean; retryAfterSeconds: number }> {
+  const bucketKey = `ratelimit:${key}:${clientIp(req)}`;
+  return redis ? redisRateLimit(redis, bucketKey, limit, windowMs) : memoryRateLimit(bucketKey, limit, windowMs);
+}
 
-  const bucket = buckets.get(bucketKey);
+/** Fixed-window counter via INCR + EXPIRE. Two requests racing to be "first"
+ * in a new window can both fire the EXPIRE — harmless, since they agree on
+ * how long the window should last (windowSeconds), so the TTL ends up the
+ * same either way. */
+async function redisRateLimit(
+  redis: Redis,
+  bucketKey: string,
+  limit: number,
+  windowMs: number
+): Promise<{ allowed: boolean; retryAfterSeconds: number }> {
+  const windowSeconds = Math.ceil(windowMs / 1000);
+  const count = await redis.incr(bucketKey);
+  if (count === 1) {
+    await redis.expire(bucketKey, windowSeconds);
+  }
+  if (count > limit) {
+    const ttl = await redis.ttl(bucketKey);
+    return { allowed: false, retryAfterSeconds: Math.max(ttl, 1) };
+  }
+  return { allowed: true, retryAfterSeconds: 0 };
+}
+
+function memoryRateLimit(
+  bucketKey: string,
+  limit: number,
+  windowMs: number
+): { allowed: boolean; retryAfterSeconds: number } {
+  const now = Date.now();
+  const bucket = memoryBuckets.get(bucketKey);
   if (!bucket || bucket.resetAt <= now) {
-    buckets.set(bucketKey, { count: 1, resetAt: now + windowMs });
+    memoryBuckets.set(bucketKey, { count: 1, resetAt: now + windowMs });
     return { allowed: true, retryAfterSeconds: 0 };
   }
 
