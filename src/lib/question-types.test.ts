@@ -52,11 +52,31 @@ describe("isValidOptionSet", () => {
 describe("toQuestionView", () => {
   it("narrows type and parses options from a raw row shape", () => {
     const raw = { id: "q1", type: "MULTIPLE_CHOICE", options: JSON.stringify(["A", "B"]) };
-    expect(toQuestionView(raw)).toEqual({ id: "q1", type: "MULTIPLE_CHOICE", options: ["A", "B"] });
+    expect(toQuestionView(raw)).toEqual({
+      id: "q1",
+      type: "MULTIPLE_CHOICE",
+      options: ["A", "B"],
+      acceptableAnswers: [],
+    });
   });
 
   it("yields an empty options array for a TEXT question", () => {
     const raw = { id: "q2", type: "TEXT", options: null };
-    expect(toQuestionView(raw)).toEqual({ id: "q2", type: "TEXT", options: [] });
+    expect(toQuestionView(raw)).toEqual({ id: "q2", type: "TEXT", options: [], acceptableAnswers: [] });
+  });
+
+  it("also parses acceptableAnswers when present", () => {
+    const raw = {
+      id: "q3",
+      type: "TEXT",
+      options: null,
+      acceptableAnswers: JSON.stringify(["Seven", "7"]),
+    };
+    expect(toQuestionView(raw)).toEqual({
+      id: "q3",
+      type: "TEXT",
+      options: [],
+      acceptableAnswers: ["Seven", "7"],
+    });
   });
 });

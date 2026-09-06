@@ -7,6 +7,12 @@ export function normalizeAnswer(raw: string): string {
     .replace(/\s+/g, " ");
 }
 
-export function isLikelyCorrect(submitted: string, correct: string): boolean {
-  return normalizeAnswer(submitted) === normalizeAnswer(correct);
+/** True when `submitted` normalizes to match `correct`, or any of the
+ * question's host-approved `acceptableAnswers` — alternate spellings,
+ * nicknames, or partial names ("7" for "Seven", "Leo" for "Leonardo
+ * DiCaprio") that would otherwise score wrong until manually overridden. */
+export function isLikelyCorrect(submitted: string, correct: string, acceptableAnswers: string[] = []): boolean {
+  const normalizedSubmitted = normalizeAnswer(submitted);
+  if (normalizedSubmitted === normalizeAnswer(correct)) return true;
+  return acceptableAnswers.some((answer) => normalizeAnswer(answer) === normalizedSubmitted);
 }

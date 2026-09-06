@@ -17,6 +17,9 @@ export type Question = {
   type: QuestionType;
   /** Only meaningful when type is "MULTIPLE_CHOICE"; empty otherwise. */
   options: string[];
+  /** Alternate spellings/nicknames the host has approved as also-correct,
+   * checked alongside `answer` when scoring a submission. */
+  acceptableAnswers: string[];
 };
 
 export type Round = {

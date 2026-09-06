@@ -11,6 +11,7 @@ function question(index: number) {
     points: 1,
     type: "TEXT",
     options: null,
+    acceptableAnswers: null,
   };
 }
 

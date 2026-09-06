@@ -29,4 +29,22 @@ describe("isLikelyCorrect", () => {
     expect(isLikelyCorrect("Venus", "Mars")).toBe(false);
     expect(isLikelyCorrect("", "Mars")).toBe(false);
   });
+
+  it("also matches any of the host-approved acceptable answers", () => {
+    expect(isLikelyCorrect("7", "Seven", ["7", "VII"])).toBe(true);
+    expect(isLikelyCorrect("vii", "Seven", ["7", "VII"])).toBe(true);
+    expect(isLikelyCorrect("Seven", "Seven", ["7", "VII"])).toBe(true);
+  });
+
+  it("normalizes acceptable answers the same way as the primary answer", () => {
+    expect(isLikelyCorrect("the streetcar", "A Named Desire", ["The Streetcar"])).toBe(true);
+  });
+
+  it("still rejects an answer matching neither the primary nor any acceptable answer", () => {
+    expect(isLikelyCorrect("8", "Seven", ["7", "VII"])).toBe(false);
+  });
+
+  it("defaults to no acceptable answers when the argument is omitted", () => {
+    expect(isLikelyCorrect("7", "Seven")).toBe(false);
+  });
 });

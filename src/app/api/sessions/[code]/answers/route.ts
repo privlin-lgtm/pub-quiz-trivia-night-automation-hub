@@ -60,7 +60,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     }
   }
 
-  const isCorrect = isLikelyCorrect(text, question.answer);
+  const isCorrect = isLikelyCorrect(text, question.answer, parseOptions(question.acceptableAnswers));
   const pointsAwarded = isCorrect ? question.points : 0;
 
   const answer = await db.answer.upsert({

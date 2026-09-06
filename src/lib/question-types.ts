@@ -33,11 +33,19 @@ export function isValidOptionSet(options: string[], answer: string): boolean {
   return cleaned.length >= 2 && cleaned.includes(answer);
 }
 
-/** Maps a raw Question row (Prisma's `type`/`options` are plain `string` /
- * `string | null`, not the narrower client-facing shape) to the
- * api-types.ts view: `type` narrowed, `options` parsed. */
-export function toQuestionView<T extends { type: string; options: string | null }>(
+/** Maps a raw Question row (Prisma's `type`/`options`/`acceptableAnswers`
+ * are plain `string` / `string | null`, not the narrower client-facing
+ * shape) to the api-types.ts view: `type` narrowed, both list columns
+ * parsed. `acceptableAnswers` is optional on the input so callers that
+ * don't carry the column (older fixtures, tests) still type-check; it's
+ * always present, parsed, on the output. */
+export function toQuestionView<T extends { type: string; options: string | null; acceptableAnswers?: string | null }>(
   question: T
-): Omit<T, "options"> & { type: QuestionType; options: string[] } {
-  return { ...question, type: question.type as QuestionType, options: parseOptions(question.options) };
+): Omit<T, "options" | "acceptableAnswers"> & { type: QuestionType; options: string[]; acceptableAnswers: string[] } {
+  return {
+    ...question,
+    type: question.type as QuestionType,
+    options: parseOptions(question.options),
+    acceptableAnswers: parseOptions(question.acceptableAnswers ?? null),
+  };
 }

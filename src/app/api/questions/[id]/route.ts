@@ -10,6 +10,10 @@ const updateSchema = z.object({
   points: z.number().int().min(1).max(10).optional(),
   type: z.enum([QUESTION_TYPE.TEXT, QUESTION_TYPE.MULTIPLE_CHOICE]).optional(),
   options: z.array(z.string().min(1)).max(6).optional(),
+  // Alternate spellings/nicknames the host approves as also-correct — see
+  // isLikelyCorrect in src/lib/scoring.ts. Sent as a full replacement list,
+  // same as `options`.
+  acceptableAnswers: z.array(z.string().min(1).max(100)).max(10).optional(),
 });
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -25,7 +29,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: "Question not found" }, { status: 404 });
   }
 
-  const { type, options: rawOptions, ...rest } = parsed.data;
+  const { type, options: rawOptions, acceptableAnswers: rawAcceptableAnswers, ...rest } = parsed.data;
   const effectiveType = type ?? existing.type;
   const effectiveAnswer = rest.answer ?? existing.answer;
   const effectiveOptions = rawOptions ?? parseOptions(existing.options);
@@ -45,9 +49,23 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       );
     }
     data.options = serializeOptions(Array.from(new Set(effectiveOptions.map((o) => o.trim()).filter(Boolean))));
-  } else if (type !== undefined) {
-    // Switching to (or re-confirming) TEXT clears any leftover options.
-    data.options = null;
+    // A multiple-choice question's correctness is fully defined by its
+    // options — an acceptableAnswers entry left over from when this was a
+    // TEXT question could coincidentally match a *wrong* option and score it
+    // correct, so it's always cleared here rather than merely left stale.
+    data.acceptableAnswers = null;
+  } else {
+    if (type !== undefined) {
+      // Switching to (or re-confirming) TEXT clears any leftover options.
+      data.options = null;
+    }
+    // A full-replacement list, same shape as `options` — sent only when the
+    // host actually edited it. Empty (or all-blank) clears the column back
+    // to null rather than storing an empty JSON array.
+    if (rawAcceptableAnswers !== undefined) {
+      const cleaned = Array.from(new Set(rawAcceptableAnswers.map((a) => a.trim()).filter(Boolean)));
+      data.acceptableAnswers = cleaned.length > 0 ? serializeOptions(cleaned) : null;
+    }
   }
 
   const question = await db.question.update({ where: { id }, data }).catch(() => null);
@@ -55,6 +73,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: "Question not found" }, { status: 404 });
   }
   return NextResponse.json({
-    question: { ...question, options: parseOptions(question.options) },
+    question: {
+      ...question,
+      options: parseOptions(question.options),
+      acceptableAnswers: parseOptions(question.acceptableAnswers),
+    },
   });
 }

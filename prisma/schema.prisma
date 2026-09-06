@@ -43,6 +43,12 @@ model Question {
   // TEXT questions leave `options` null.
   type    String  @default("TEXT")
   options String?
+  // Alternate spellings/nicknames/etc. the host has approved as also-correct
+  // (e.g. "7" alongside "Seven"), checked by isLikelyCorrect in
+  // src/lib/scoring.ts. Same JSON-encoded string[] storage as `options`
+  // (parsed with the same helpers in src/lib/question-types.ts); null/empty
+  // means only the primary `answer` scores as correct.
+  acceptableAnswers String?
 
   @@unique([roundId, index])
 }

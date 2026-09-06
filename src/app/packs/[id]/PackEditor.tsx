@@ -6,7 +6,13 @@ import { useRouter } from "next/navigation";
 import type { Pack, Question, QuestionType } from "@/lib/api-types";
 import { writeHostToken } from "@/lib/host-session";
 
-type Draft = Pick<Question, "text" | "answer" | "points" | "type" | "options">;
+type Draft = Pick<Question, "text" | "answer" | "points" | "type" | "options"> & {
+  // Kept as the raw comma-separated text the host is typing, not a parsed
+  // string[] — splitting on every keystroke would fight the host's typing
+  // (e.g. trailing ", " while starting the next entry). Only split/cleaned
+  // right before it goes into the PATCH request body, in saveQuestion.
+  acceptableAnswersText: string;
+};
 
 function draftsEqual(a: Draft, b: Draft): boolean {
   return (
@@ -14,6 +20,7 @@ function draftsEqual(a: Draft, b: Draft): boolean {
     a.answer === b.answer &&
     a.points === b.points &&
     a.type === b.type &&
+    a.acceptableAnswersText === b.acceptableAnswersText &&
     a.options.length === b.options.length &&
     a.options.every((o, i) => o === b.options[i])
   );
@@ -39,7 +46,14 @@ export function PackEditor({ pack }: { pack: Pack }) {
       pack.rounds.flatMap((round) =>
         round.questions.map((q) => [
           q.id,
-          { text: q.text, answer: q.answer, points: q.points, type: q.type, options: q.options },
+          {
+            text: q.text,
+            answer: q.answer,
+            points: q.points,
+            type: q.type,
+            options: q.options,
+            acceptableAnswersText: q.acceptableAnswers.join(", "),
+          },
         ])
       )
     )
@@ -96,6 +110,10 @@ export function PackEditor({ pack }: { pack: Pack }) {
         points: draft.points,
         type: draft.type,
         options: draft.type === "MULTIPLE_CHOICE" ? draft.options.map((o) => o.trim()).filter(Boolean) : undefined,
+        acceptableAnswers: draft.acceptableAnswersText
+          .split(",")
+          .map((a) => a.trim())
+          .filter(Boolean),
       }),
     });
     if (!res.ok) {
@@ -112,8 +130,15 @@ export function PackEditor({ pack }: { pack: Pack }) {
     if (type === "MULTIPLE_CHOICE") {
       // Seed with the current answer as the first (correct) option, plus one
       // blank slot to fill in — left as a local, unsaved edit until the host
-      // fills that second option in (see isDraftSaveable).
-      updateDraft(id, { type, options: draft.options.length >= 2 ? draft.options : [draft.answer, ""] });
+      // fills that second option in (see isDraftSaveable). Alternate answers
+      // don't apply once correctness is defined by an explicit option list
+      // (the PATCH route clears them server-side too), so drop them here so
+      // the UI doesn't show a stale value it's about to hide anyway.
+      updateDraft(id, {
+        type,
+        options: draft.options.length >= 2 ? draft.options : [draft.answer, ""],
+        acceptableAnswersText: "",
+      });
     } else {
       // TEXT is always immediately valid (text/answer/points are unchanged),
       // so this one saves right away, clearing the now-irrelevant options.
@@ -359,6 +384,24 @@ export function PackEditor({ pack }: { pack: Pack }) {
                         />
                       </label>
                     </div>
+
+                    {draft.type === "TEXT" ? (
+                      <label className="block">
+                        <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-muted">
+                          Alternate answers (comma-separated)
+                        </span>
+                        <input
+                          value={draft.acceptableAnswersText}
+                          onChange={(e) => updateDraft(question.id, { acceptableAnswersText: e.target.value })}
+                          onBlur={() => saveQuestion(question.id)}
+                          placeholder="e.g. Leo, Leonardo"
+                          className="h-11 w-full rounded-lg border border-line bg-white px-3 text-base outline-none focus:ring-2 focus:ring-amber"
+                        />
+                        <span className="mt-1 block text-xs text-muted">
+                          Also scored correct alongside the answer above — nicknames, alternate spellings, etc.
+                        </span>
+                      </label>
+                    ) : null}
                   </li>
                 );
               })}
