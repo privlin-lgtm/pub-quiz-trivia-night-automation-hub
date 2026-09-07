@@ -16,12 +16,14 @@ datasource db {
 }
 
 model QuizPack {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   title     String
   prompt    String
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
   rounds    Round[]
   sessions  Session[]
+  creator   Creator?  @relation(fields: [creatorId], references: [id])
+  creatorId String?
 }
 
 model Round {
@@ -107,4 +109,14 @@ model Answer {
   submittedAt   DateTime @default(now())
 
   @@unique([teamId, roundIndex, questionIndex])
+}
+
+model Creator {
+  id                     String     @id @default(cuid())
+  deviceKey              String     @unique
+  plan                   String     @default("FREE") // FREE | PRO
+  packsGeneratedInPeriod Int        @default(0)
+  periodStartedAt        DateTime   @default(now())
+  createdAt              DateTime   @default(now())
+  packs                  QuizPack[]
 }
