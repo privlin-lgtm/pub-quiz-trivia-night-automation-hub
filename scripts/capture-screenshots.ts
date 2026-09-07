@@ -96,6 +96,9 @@ async function main() {
     await shot(host, "01-landing.png");
 
     await host.goto(`${BASE_URL}/create`);
+    // The free-tier usage line is fetched client-side after mount; wait for
+    // it so the screenshot shows the wizard in its real, settled state.
+    await host.getByText(/free packs used this month/).waitFor();
     await shot(host, "02-create-wizard.png");
 
     // Seed a demo pack via the API (no Anthropic key needed) and open the editor.
