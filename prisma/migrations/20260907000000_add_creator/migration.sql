@@ -8,9 +8,11 @@ CREATE TABLE "Creator" (
     "plan" TEXT NOT NULL DEFAULT 'FREE',
     "packsGeneratedInPeriod" INTEGER NOT NULL DEFAULT 0,
     "periodStartedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "Creator_deviceKey_key" UNIQUE ("deviceKey")
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Creator_deviceKey_key" ON "Creator"("deviceKey");
 
 -- CreateIndex
 CREATE INDEX "QuizPack_creatorId_idx" ON "QuizPack"("creatorId");

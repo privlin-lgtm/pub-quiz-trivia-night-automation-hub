@@ -24,6 +24,8 @@ model QuizPack {
   sessions  Session[]
   creator   Creator?  @relation(fields: [creatorId], references: [id])
   creatorId String?
+
+  @@index([creatorId])
 }
 
 model Round {

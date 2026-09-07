@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
   const { creator, setCookieOn } = await getOrCreateCreator(req);
   const rolled = withRolledPeriod(creator);
 
-  if (!canGenerate(creator)) {
+  if (!canGenerate(rolled)) {
     const res = NextResponse.json(
       {
         error: "You've used your free packs for this month. Upgrade to Pro for unlimited generation.",
@@ -75,13 +75,21 @@ export async function POST(req: NextRequest) {
   }
 
   const pack = await createPackFromGenerated(generated, parsed.data.prompt);
+  // withRolledPeriod returns the *same* object reference when the period
+  // hasn't expired, and a *new* one when it has — so reference inequality
+  // here reliably detects a roll (see src/lib/creator.test.ts). When the
+  // period rolled, the count must reset to 1 outright: an increment against
+  // a value that's about to be zeroed makes no sense. When it didn't roll,
+  // use Prisma's atomic `increment` instead of a value computed from a read
+  // that happened before the (multi-second) Anthropic call above — otherwise
+  // two concurrent requests on the same cookie can race and lose an update.
+  const periodRolled = rolled.periodStartedAt !== creator.periodStartedAt;
   await db.$transaction([
     db.creator.update({
       where: { id: creator.id },
-      data: {
-        packsGeneratedInPeriod: rolled.packsGeneratedInPeriod + 1,
-        periodStartedAt: rolled.periodStartedAt,
-      },
+      data: periodRolled
+        ? { packsGeneratedInPeriod: 1, periodStartedAt: rolled.periodStartedAt }
+        : { packsGeneratedInPeriod: { increment: 1 } },
     }),
     db.quizPack.update({ where: { id: pack.id }, data: { creatorId: creator.id } }),
   ]);

@@ -65,6 +65,13 @@ describe("POST /api/packs/generate — Creator cap", () => {
     const res = await generate(requestWithCookie());
     expect(res.status).toBe(201);
     expect(res.headers.get("set-cookie")).toMatch(/pq_creator=/);
+
+    const deviceKey = /pq_creator=([^;]+)/.exec(res.headers.get("set-cookie")!)![1];
+    const creator = await db.creator.findUnique({ where: { deviceKey } });
+    const body = await res.json();
+    const pack = await db.quizPack.findUnique({ where: { id: body.pack.id } });
+    expect(pack!.creatorId).not.toBeNull();
+    expect(pack!.creatorId).toBe(creator!.id);
   });
 
   it("does not set a new cookie for a returning creator", async () => {
