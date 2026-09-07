@@ -4,12 +4,15 @@ generator client {
 
 // The actual connection (local file, or a hosted Turso database) is
 // configured via the libSQL driver adapter in prisma.config.ts (CLI) and
-// src/lib/db.ts (app runtime) — see .env.example. `url` still has to name
-// an env var here (Prisma's schema validator requires the datasource block
-// to have one), but its value is never read in adapter mode.
+// src/lib/db.ts (app runtime) — see .env.example. This `url` is an inert
+// placeholder: Prisma's schema engine validates it against the `sqlite`
+// provider's `file:` format at parse time even in adapter mode (before the
+// adapter ever runs), so it can't be `env("DATABASE_URL")` — that var holds
+// the real `libsql://...` target in production, which would fail this
+// literal format check. A hardcoded dummy value sidesteps that.
 datasource db {
   provider = "sqlite"
-  url      = env("DATABASE_URL")
+  url      = "file:./prisma/dev.db"
 }
 
 model QuizPack {
