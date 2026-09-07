@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Countdown } from "@/components/Countdown";
 import { Scoreboard } from "@/components/Scoreboard";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -23,6 +23,11 @@ export function TeamPortal() {
   const [state, setState] = useState<TeamSessionState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // The id of the question the `answer` draft belongs to. When the host
+  // advances, the next poll brings a different id and the draft is replaced
+  // by whatever the server holds for the new question (usually nothing), so a
+  // team can never submit the previous question's text by accident.
+  const answerQuestionId = useRef<string | null>(null);
 
   useEffect(() => {
     // localStorage isn't available during SSR, so the real value can only be
@@ -55,7 +60,11 @@ export function TeamPortal() {
       }
       setError(null);
       setState(data);
-      if (data.myAnswer?.text && data.status !== "QUESTION_ACTIVE") {
+      const questionId: string | null = data.question?.id ?? null;
+      if (questionId !== answerQuestionId.current) {
+        answerQuestionId.current = questionId;
+        setAnswer(data.myAnswer?.text ?? "");
+      } else if (data.myAnswer?.text && data.status !== "QUESTION_ACTIVE") {
         setAnswer(data.myAnswer.text);
       }
     } catch {
@@ -94,6 +103,7 @@ export function TeamPortal() {
       };
       writeStoredTeam(team);
       setStored(team);
+      answerQuestionId.current = null;
       setAnswer("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not join");
@@ -127,6 +137,7 @@ export function TeamPortal() {
     clearStoredTeam();
     setStored(null);
     setState(null);
+    answerQuestionId.current = null;
     setAnswer("");
   }
 
