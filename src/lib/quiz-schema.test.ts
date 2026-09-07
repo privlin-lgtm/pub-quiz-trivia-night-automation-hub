@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { generatedQuestionSchema, wizardRequestSchema } from "@/lib/quiz-schema";
+import { generatedPackSchema, generatedQuestionSchema, wizardRequestSchema } from "@/lib/quiz-schema";
 
 describe("wizardRequestSchema", () => {
   it("rejects an empty prompt", () => {
@@ -49,28 +49,80 @@ describe("generatedQuestionSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("rejects multiple-choice with fewer than 2 options", () => {
+  // A multiple-choice question with a broken option set is still a usable
+  // question: the answer is known, so it degrades to free-text instead of
+  // sinking the whole generated pack. (Observed in production: one such
+  // question made every "1990s pop music" prompt 502 deterministically.)
+  it("falls back to TEXT for multiple-choice with fewer than 2 options", () => {
     const result = generatedQuestionSchema.safeParse({
       text: "Q?",
       answer: "A",
       type: "MULTIPLE_CHOICE",
       options: ["A"],
     });
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.type).toBe("TEXT");
+      expect(result.data.options).toBeUndefined();
+      expect(result.data.answer).toBe("A");
+    }
   });
 
-  it("rejects multiple-choice whose options don't include the answer", () => {
+  it("falls back to TEXT for multiple-choice whose options don't include the answer", () => {
     const result = generatedQuestionSchema.safeParse({
       text: "Q?",
       answer: "A",
       type: "MULTIPLE_CHOICE",
       options: ["B", "C"],
     });
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.type).toBe("TEXT");
+      expect(result.data.options).toBeUndefined();
+    }
   });
 
-  it("rejects multiple-choice with no options at all", () => {
+  it("falls back to TEXT for multiple-choice with no options at all", () => {
     const result = generatedQuestionSchema.safeParse({ text: "Q?", answer: "A", type: "MULTIPLE_CHOICE" });
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.type).toBe("TEXT");
+  });
+
+  it("keeps a well-formed multiple-choice question whose answer has stray whitespace", () => {
+    const result = generatedQuestionSchema.safeParse({
+      text: "Which band released Nevermind?",
+      answer: "Nirvana ",
+      type: "MULTIPLE_CHOICE",
+      options: ["Nirvana", "Oasis", "Blur"],
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.type).toBe("MULTIPLE_CHOICE");
+      expect(result.data.options).toEqual(["Nirvana", "Oasis", "Blur"]);
+    }
+  });
+});
+
+describe("generatedPackSchema", () => {
+  it("keeps the rest of the pack when one question's option set is malformed", () => {
+    const result = generatedPackSchema.safeParse({
+      title: "Pack",
+      rounds: [
+        {
+          title: "Music",
+          category: "Music",
+          questions: [
+            { text: "Q1?", answer: "A1" },
+            { text: "Q2?", answer: "A2", type: "MULTIPLE_CHOICE", options: ["B", "C"] },
+            { text: "Q3?", answer: "A3", type: "MULTIPLE_CHOICE", options: ["A3", "X"] },
+          ],
+        },
+      ],
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      const types = result.data.rounds[0].questions.map((q) => q.type);
+      expect(types).toEqual(["TEXT", "TEXT", "MULTIPLE_CHOICE"]);
+    }
   });
 });

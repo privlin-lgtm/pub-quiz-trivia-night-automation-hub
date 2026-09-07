@@ -47,6 +47,14 @@ describe("isValidOptionSet", () => {
     expect(isValidOptionSet([" Mars ", "Venus", "  "], "Mars")).toBe(true);
     expect(isValidOptionSet(["Mars", "  "], "Mars")).toBe(false);
   });
+
+  it("trims the answer symmetrically with the options", () => {
+    // Regression: the model occasionally emits a trailing space on the
+    // answer; the options were trimmed but the answer was not, so a
+    // perfectly good multiple-choice question failed validation.
+    expect(isValidOptionSet(["Nirvana", "Oasis"], "Nirvana ")).toBe(true);
+    expect(isValidOptionSet(["Nirvana", "Oasis"], " Nirvana")).toBe(true);
+  });
 });
 
 describe("toQuestionView", () => {

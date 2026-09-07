@@ -9,10 +9,16 @@ export const generatedQuestionSchema = z
     type: z.enum([QUESTION_TYPE.TEXT, QUESTION_TYPE.MULTIPLE_CHOICE]).default(QUESTION_TYPE.TEXT),
     options: z.array(z.string().min(1)).max(6).optional(),
   })
-  .refine((q) => q.type !== QUESTION_TYPE.MULTIPLE_CHOICE || isValidOptionSet(q.options ?? [], q.answer), {
-    message: "multiple_choice questions need at least 2 distinct options, one of which is the answer",
-    path: ["options"],
-  });
+  // A multiple-choice question whose option set is unusable (too few
+  // distinct options, or none of them is the answer) is still a perfectly
+  // good free-text question: the answer is known. Degrade it to TEXT rather
+  // than reject it — rejecting threw away the *entire* generated pack for one
+  // malformed question, and did so deterministically for some prompts.
+  .transform((q) =>
+    q.type === QUESTION_TYPE.MULTIPLE_CHOICE && !isValidOptionSet(q.options ?? [], q.answer)
+      ? { ...q, type: QUESTION_TYPE.TEXT, options: undefined }
+      : q
+  );
 
 export const generatedRoundSchema = z.object({
   title: z.string().min(1),
