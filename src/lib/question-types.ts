@@ -27,10 +27,12 @@ export function serializeOptions(options: string[]): string {
 }
 
 /** True when `options` is a valid choice set for a multiple-choice question:
- * at least 2 distinct, non-blank options, one of which is the answer. */
+ * at least 2 distinct, non-blank options, one of which is the answer.
+ * Both sides are trimmed: the model occasionally emits stray whitespace on
+ * the answer, and that must not disqualify an otherwise-correct option set. */
 export function isValidOptionSet(options: string[], answer: string): boolean {
   const cleaned = Array.from(new Set(options.map((o) => o.trim()).filter(Boolean)));
-  return cleaned.length >= 2 && cleaned.includes(answer);
+  return cleaned.length >= 2 && cleaned.includes(answer.trim());
 }
 
 /** Maps a raw Question row (Prisma's `type`/`options`/`acceptableAnswers`
