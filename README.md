@@ -4,6 +4,8 @@ Generate a complete pub quiz pack with AI, print presenter scripts and PDF
 question/answer sheets, and run the night live with teams submitting answers
 from their phones.
 
+**Live demo**: https://pub-quiz-trivia-night-automation-hu.vercel.app
+
 ## Screenshots
 
 Real, in-browser captures from `npm run screenshots` (Playwright drives an
