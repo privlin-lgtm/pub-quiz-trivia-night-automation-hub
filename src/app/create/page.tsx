@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SiteHeader } from "@/components/SiteHeader";
 import { ArrowRightIcon } from "@/components/icons";
@@ -14,6 +14,13 @@ export default function CreatePage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notConfigured, setNotConfigured] = useState(false);
+  const [usage, setUsage] = useState<{ used: number; limit: number; plan: string } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/creator/status")
+      .then((res) => res.json())
+      .then((data) => setUsage({ used: data.packsGeneratedInPeriod, limit: data.limit, plan: data.plan }));
+  }, []);
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -29,6 +36,9 @@ export default function CreatePage() {
       const data = await res.json();
       if (!res.ok) {
         setNotConfigured(res.status === 503);
+        if (res.status === 403) {
+          setUsage({ used: data.packsGeneratedInPeriod, limit: data.limit, plan: "FREE" });
+        }
         throw new Error(data.error ?? "Generation failed");
       }
       router.push(`/packs/${data.pack.id}`);
@@ -61,6 +71,11 @@ export default function CreatePage() {
           Tell the wizard what kind of night you are running. It will draft rounds, questions,
           answers, and points you can edit next.
         </p>
+        {usage && usage.plan !== "PRO" ? (
+          <p className="mt-2 text-sm text-muted">
+            {usage.used}/{usage.limit} free packs used this month
+          </p>
+        ) : null}
 
         <form onSubmit={onSubmit} className="mt-8 space-y-5">
           <label className="block">
@@ -92,13 +107,24 @@ export default function CreatePage() {
             </div>
           ) : null}
 
-          <button
-            type="submit"
-            disabled={busy || prompt.trim().length === 0}
-            className="h-12 w-full rounded-xl bg-amber text-base font-semibold text-white hover:bg-amber-hover disabled:opacity-50 sm:w-auto sm:px-6"
-          >
-            {busy ? "Generating…" : "Generate pack"}
-          </button>
+          {(() => {
+            const atCap = !!usage && usage.plan !== "PRO" && usage.used >= usage.limit;
+            return (
+              <button
+                type="submit"
+                disabled={busy || prompt.trim().length === 0 || atCap}
+                className="h-12 w-full rounded-xl bg-amber text-base font-semibold text-white hover:bg-amber-hover disabled:opacity-50 sm:w-auto sm:px-6"
+              >
+                {busy ? "Generating…" : atCap ? "Free limit reached" : "Generate pack"}
+              </button>
+            );
+          })()}
+
+          {usage && usage.plan !== "PRO" && usage.used >= usage.limit ? (
+            <p className="text-sm text-muted">
+              Upgrade to Pro for unlimited packs — coming soon. Use the demo pack instead for now.
+            </p>
+          ) : null}
         </form>
       </main>
     </>
