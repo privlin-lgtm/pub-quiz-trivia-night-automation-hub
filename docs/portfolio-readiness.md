@@ -297,3 +297,21 @@ the right header, `200`.
 | `GET /api/creator/status` | 200 `{"plan":"FREE","packsGeneratedInPeriod":0,"limit":2}` |
 | `POST /api/packs/generate` (previously failing prompt) | 201 |
 | `DELETE /api/packs/<id>` without token | 401 |
+
+---
+
+# Cross-checked from the studio-site session, 2026-09-08
+
+`Projects/Yanshuf/HANDOFF.md` (the yanshufstudio.com marketing site) still
+described this project's card with the live-demo button removed and status
+"Shipped", pending the two blockers above. Re-read this file from that session
+and confirmed both are closed here: the 502 fix (`101a4c7`) and `ADMIN_TOKEN`
+being set are both recorded above under "Closed 2026-09-07 evening".
+
+Live homepage re-checked directly: `https://pub-quiz-trivia-night-automation-hu.vercel.app`
+renders the three CTA cards (Generate a quiz pack / Manage your packs / Join
+as a team), no errors.
+
+**Action for whoever next touches the studio site:** it's clear to restore the
+live-demo button and change the status tag back from "Shipped" to "Live" on
+the Pub Quiz card.
