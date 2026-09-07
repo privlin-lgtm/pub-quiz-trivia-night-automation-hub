@@ -4,13 +4,24 @@ import { test, expect, request } from "@playwright/test";
 // function level in src/lib/scoreboard-summary.test.ts, but nothing before
 // this exercised it through the actual ENDED screen with two real teams
 // genuinely tied for first — this closes that gap.
+//
+// The quiz itself is driven through the API rather than by clicking through
+// all six questions in three browsers. Every UI transition is delivered by a
+// 3-second poll, so a click-driven run spent 20-25s waiting on polls alone
+// and tripped the 30s test timeout roughly one run in four. The screens under
+// test here are the ENDED screens, and those still render through the real
+// polling clients below.
 test("two teams tied for first both see the champions treatment, named together", async ({
   browser,
   baseURL,
 }) => {
   const api = await request.newContext({ baseURL });
   const seedRes = await api.post("/api/packs/seed");
-  const { pack } = await seedRes.json();
+  const { pack } = (await seedRes.json()) as {
+    pack: { id: string; rounds: { questions: { answer: string }[] }[] };
+  };
+  const questions = pack.rounds.flatMap((round) => round.questions);
+  expect(questions.length).toBeGreaterThan(1);
 
   const sessionRes = await api.post("/api/sessions", { data: { packId: pack.id } });
   const { session, hostToken } = await sessionRes.json();
@@ -42,24 +53,29 @@ test("two teams tied for first both see the champions treatment, named together"
   await teamB.getByRole("button", { name: "Join session" }).click();
   await teamB.getByText("Sit tight.").waitFor();
 
-  await hostPage.getByRole("button", { name: "Start quiz" }).click();
+  // The portal stores each team's token on join; reuse it to answer via API.
+  const readToken = (page: typeof teamA) =>
+    page.evaluate(() => (JSON.parse(localStorage.getItem("quiz-hub:team")!) as { token: string }).token);
+  const tokenA = await readToken(teamA);
+  const tokenB = await readToken(teamB);
+
+  const advance = async (action: "start" | "reveal" | "next") => {
+    const res = await api.post(`/api/sessions/${code}/advance`, { data: { action, hostToken } });
+    expect(res.ok(), `advance ${action}: ${res.status()}`).toBeTruthy();
+  };
+  const answer = async (token: string, text: string) => {
+    const res = await api.post(`/api/sessions/${code}/answers`, { data: { token, text } });
+    expect(res.ok(), `answer "${text}": ${res.status()}`).toBeTruthy();
+  };
 
   // Both teams answer every question correctly, so they stay tied all the
   // way to the end rather than just tying on question one.
-  for (let i = 0; i < 6; i++) {
-    await teamA.getByLabel("Your answer").waitFor({ timeout: 10_000 });
-    const question = await teamA.locator("h2").last().textContent();
-    const answer = ANSWERS[question?.trim() ?? ""];
-    if (!answer) throw new Error(`No known answer for question: ${question}`);
-
-    await teamA.getByLabel("Your answer").fill(answer);
-    await teamA.getByRole("button", { name: "Submit answer" }).click();
-    await teamB.getByLabel("Your answer").fill(answer);
-    await teamB.getByRole("button", { name: "Submit answer" }).click();
-
-    await hostPage.getByText("2/2").waitFor({ timeout: 10_000 });
-    await hostPage.getByRole("button", { name: "Reveal answer" }).click();
-    await hostPage.getByRole("button", { name: /Next question|End quiz/ }).click();
+  await advance("start");
+  for (const question of questions) {
+    await answer(tokenA, question.answer);
+    await answer(tokenB, question.answer);
+    await advance("reveal");
+    await advance("next");
   }
 
   await expect(hostPage.getByText("Tonight’s champions")).toBeVisible({ timeout: 10_000 });
@@ -76,12 +92,3 @@ test("two teams tied for first both see the champions treatment, named together"
   await teamBContext.close();
   await api.dispose();
 });
-
-const ANSWERS: Record<string, string> = {
-  "What is the capital of Australia?": "Canberra",
-  "How many continents are there?": "Seven",
-  "What planet is known as the Red Planet?": "Mars",
-  "Who played Jack in the 1997 film Titanic?": "Leonardo DiCaprio",
-  "What was the best-selling console of the 1990s?": "Sony PlayStation",
-  "Which British girl group released 'Wannabe' in 1996?": "Spice Girls",
-};

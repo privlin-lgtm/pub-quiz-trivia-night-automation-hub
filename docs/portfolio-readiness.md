@@ -241,9 +241,12 @@ Everything above is resolved. Summary of what was done and verified, in order.
 
 - `npm run test`: 69/69. `npm run test:integration`: 65/65. `tsc --noEmit`, `eslint`,
   `next build` all clean.
-- Playwright: `quiz-flow.spec.ts` passes. `tie-ending.spec.ts` times out waiting for
-  the `Submit answer` button when run after `quiz-flow` in the same worker, and passes
-  when run alone. Known flake, not a regression; not fixed here.
+- Playwright: `quiz-flow.spec.ts` passes. `tie-ending.spec.ts` timed out roughly one
+  run in four: it clicked through all six questions in three browsers, and every step
+  waited on a 3-second poll, so a clean run took ~23s against the 30s cap. Fixed after
+  this walk by driving the answers and host transitions through the API and keeping
+  the browsers only for join and the ENDED screens under test. Now ~5s, 10/10 green
+  with `--repeat-each 5`.
 
 ## Generation 502 — root cause and fix
 
