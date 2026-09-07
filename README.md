@@ -32,6 +32,9 @@ throwaway DB and dev server, so it never touches `prisma/dev.db`).
 - `@react-pdf/renderer` for PDF export
 - Vitest for unit tests
 - Live team portal via polling (no websockets)
+- Installable as a PWA (`src/app/manifest.ts` + the icon set in `public/`);
+  no service worker on purpose, since the live session is polling and an
+  offline shell would only look alive
 
 ## Setup
 
