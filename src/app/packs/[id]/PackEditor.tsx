@@ -319,6 +319,13 @@ export function PackEditor({ pack }: { pack: Pack }) {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <a
+            href={`/api/packs/${pack.id}/export`}
+            download
+            className="inline-flex h-11 items-center rounded-xl border border-line bg-white px-4 text-sm font-semibold"
+          >
+            Export JSON
+          </a>
           <Link
             href={`/packs/${pack.id}/print`}
             className="inline-flex h-11 items-center rounded-xl border border-line bg-white px-4 text-sm font-semibold"

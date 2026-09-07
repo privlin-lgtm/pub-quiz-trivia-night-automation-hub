@@ -82,7 +82,11 @@ Claude. There's also a CLI seed script: `npm run db:seed`.
    the response is schema-validated JSON) and persists the pack via Prisma.
 2. **Edit** — `/packs/[id]` lists rounds/questions for inline editing
    (`PATCH /api/questions/[id]`) and links to PDF exports
-   (`GET /api/packs/[id]/pdf?type=questions|answers|script`).
+   (`GET /api/packs/[id]/pdf?type=questions|answers|script`). A pack can
+   also be exported as a portable JSON file (`GET /api/packs/[id]/export`,
+   format `pub-quiz-pack` v1, ids stripped, host-approved alternate answers
+   kept) and re-imported from the packs list (`POST /api/packs/import`) —
+   on the same deployment or a different one — without spending an AI call.
 3. **Host** — `POST /api/sessions` creates a live session with a short join
    code **and a separate, unguessable host key** (returned once, stored in
    the host's browser). The host dashboard polls
@@ -112,7 +116,7 @@ a retried request on flaky venue wifi — can't both apply; the loser gets a
   cleared storage), `/host/[code]` offers a "paste your host key" recovery
   form rather than a hard lockout.
 - **Rate limiting**: `POST /api/packs/generate` (spends real Anthropic API
-  credit) and `POST /api/packs/seed` are throttled per-IP
+  credit), `POST /api/packs/seed` and `POST /api/packs/import` are throttled per-IP
   (`src/lib/rate-limit.ts`) — backed by Upstash Redis when
   `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` are set (see
   Deployment above), or an in-memory, single-instance Map otherwise, which

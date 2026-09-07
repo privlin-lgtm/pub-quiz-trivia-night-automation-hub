@@ -2,7 +2,16 @@ import { db } from "@/lib/db";
 import type { GeneratedPack } from "@/lib/quiz-schema";
 import { QUESTION_TYPE, serializeOptions } from "@/lib/question-types";
 
-export async function createPackFromGenerated(generated: GeneratedPack, prompt: string) {
+// Questions may carry host-approved alternates (a re-imported pack file
+// does; freshly generated packs don't), so accept them optionally here.
+type QuestionInput = GeneratedPack["rounds"][number]["questions"][number] & {
+  acceptableAnswers?: string[];
+};
+type PackInput = Omit<GeneratedPack, "rounds"> & {
+  rounds: (Omit<GeneratedPack["rounds"][number], "questions"> & { questions: QuestionInput[] })[];
+};
+
+export async function createPackFromGenerated(generated: PackInput, prompt: string) {
   return db.quizPack.create({
     data: {
       title: generated.title,
@@ -22,6 +31,10 @@ export async function createPackFromGenerated(generated: GeneratedPack, prompt: 
               options:
                 question.type === QUESTION_TYPE.MULTIPLE_CHOICE && question.options
                   ? serializeOptions(question.options)
+                  : null,
+              acceptableAnswers:
+                question.acceptableAnswers && question.acceptableAnswers.length > 0
+                  ? serializeOptions(question.acceptableAnswers)
                   : null,
             })),
           },

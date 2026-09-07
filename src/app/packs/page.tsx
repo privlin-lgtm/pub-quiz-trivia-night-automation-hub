@@ -2,6 +2,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { SiteHeader } from "@/components/SiteHeader";
 import { ArrowRightIcon } from "@/components/icons";
+import { ImportPackButton } from "./ImportPackButton";
 
 export const dynamic = "force-dynamic";
 
@@ -21,12 +22,15 @@ export default async function PacksPage() {
             <h1 className="font-serif text-3xl font-semibold tracking-tight">Quiz packs</h1>
             <p className="mt-2 text-muted">Edit questions, preview print sheets, then start a live session.</p>
           </div>
-          <Link
-            href="/create"
-            className="inline-flex h-11 items-center rounded-xl bg-amber px-4 text-sm font-semibold text-white hover:bg-amber-hover"
-          >
-            New pack
-          </Link>
+          <div className="flex flex-wrap items-start gap-2">
+            <ImportPackButton />
+            <Link
+              href="/create"
+              className="inline-flex h-11 items-center rounded-xl bg-amber px-4 text-sm font-semibold text-white hover:bg-amber-hover"
+            >
+              New pack
+            </Link>
+          </div>
         </div>
 
         {packs.length === 0 ? (

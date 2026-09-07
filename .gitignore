@@ -37,6 +37,10 @@ yarn-error.log*
 # prisma
 /prisma/dev.db
 /prisma/dev.db-journal
+# A `.env` DATABASE_URL of file:./dev.db resolves against the process cwd
+# with the libSQL adapter, so a root-level copy appears too.
+/dev.db
+/dev.db-journal
 /prisma/test.db
 /prisma/test.db-journal
 /prisma/e2e.db
