@@ -14,10 +14,14 @@ test("host runs a live round and a team answers correctly", async ({ browser, ba
   const code = hostPage.url().split("/host/")[1];
   expect(code).toMatch(/^[A-Z0-9]{5}$/);
 
+  // The lobby shows a QR code that encodes the join link with the code
+  // baked in; a team that scans it lands on /play with the code prefilled.
+  await expect(hostPage.getByRole("img", { name: "Scan to join" })).toBeVisible();
+
   const teamContext = await browser.newContext();
   const teamPage = await teamContext.newPage();
-  await teamPage.goto("/play");
-  await teamPage.getByLabel("Session code").fill(code);
+  await teamPage.goto(`/play?code=${code}`);
+  await expect(teamPage.getByLabel("Session code")).toHaveValue(code);
   await teamPage.getByLabel("Team name").fill("Quiz Pigs");
   await teamPage.getByRole("button", { name: "Join session" }).click();
   await expect(teamPage.getByText("Sit tight.")).toBeVisible();

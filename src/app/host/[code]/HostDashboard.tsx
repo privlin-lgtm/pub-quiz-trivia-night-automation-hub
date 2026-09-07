@@ -2,12 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import QRCode from "react-qr-code";
 import { Countdown } from "@/components/Countdown";
 import { Scoreboard } from "@/components/Scoreboard";
 import { StatusBadge } from "@/components/StatusBadge";
 import { TrophyIcon } from "@/components/icons";
 import { topScorers, winningNames } from "@/lib/scoreboard-summary";
 import { readHostToken, writeHostToken } from "@/lib/host-session";
+import { buildJoinUrl } from "@/lib/join-url";
 import type { HostSessionState, HostTeam } from "@/lib/api-types";
 
 export function HostDashboard({ code }: { code: string }) {
@@ -179,6 +181,7 @@ export function HostDashboard({ code }: { code: string }) {
               <p className="mt-2 text-stage-muted">
                 Share the code. Start when everyone is in — late joiners can still arrive during the lobby.
               </p>
+              <JoinQr code={state.code} />
               <button
                 type="button"
                 onClick={() => advance("start")}
@@ -353,5 +356,23 @@ export function HostDashboard({ code }: { code: string }) {
         </p>
       </main>
     </div>
+  );
+}
+
+// Scannable join link for the lobby. The origin is read at render time so
+// the same build works on localhost, a preview URL, and production. This is
+// a client component, so window is always defined by the time it renders.
+function JoinQr({ code }: { code: string }) {
+  const joinUrl = buildJoinUrl(window.location.origin, code);
+  return (
+    <figure className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:items-center sm:gap-5">
+      <div className="rounded-xl bg-white p-3">
+        <QRCode value={joinUrl} size={168} role="img" aria-label="Scan to join" />
+      </div>
+      <figcaption className="text-center text-sm text-stage-muted sm:text-left">
+        <span className="block font-semibold text-stage-fg">Scan to join</span>
+        <span className="mt-1 block break-all font-mono text-xs">{joinUrl}</span>
+      </figcaption>
+    </figure>
   );
 }

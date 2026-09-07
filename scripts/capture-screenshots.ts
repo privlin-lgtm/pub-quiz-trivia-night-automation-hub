@@ -117,6 +117,9 @@ async function main() {
     await host.getByRole("button", { name: "Start live session" }).click();
     await host.waitForURL(/\/host\//);
     const code = host.url().split("/host/")[1];
+    // The desk renders "Loading host desk…" until its first poll lands; the
+    // lobby's QR code is the last thing to appear, so wait for that.
+    await host.getByRole("img", { name: "Scan to join" }).waitFor();
     await shot(host, "05-host-lobby.png");
 
     // Mobile context — the team portal, as a phone-shaped viewport.

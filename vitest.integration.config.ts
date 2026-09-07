@@ -10,6 +10,7 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["**/*.integration.test.ts"],
+    exclude: ["**/node_modules/**", "**/.claude/**"],
     globalSetup: "./vitest.integration.setup.ts",
     env: {
       DATABASE_URL: `file:${path.resolve(__dirname, "prisma/test.db")}`,

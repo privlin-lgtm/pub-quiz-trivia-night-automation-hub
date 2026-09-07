@@ -12,6 +12,7 @@ import {
   writeStoredTeam,
   type StoredTeam,
 } from "@/lib/team-session";
+import { readJoinCode } from "@/lib/join-url";
 import type { TeamSessionState } from "@/lib/api-types";
 
 export function TeamPortal() {
@@ -41,6 +42,10 @@ export function TeamPortal() {
     if (existing) {
       setCode(existing.code);
       setName(existing.teamName);
+    } else {
+      // Arriving via the host desk's QR code (/play?code=ABCDE): prefill the
+      // session code so the team only has to pick a name.
+      setCode(readJoinCode(window.location.search));
     }
     setHydrated(true);
   }, []);

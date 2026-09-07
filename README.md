@@ -15,7 +15,7 @@ actual live session end-to-end — nothing here is mocked or hand-edited).
 |---|---|
 | ![Landing page](docs/screenshots/01-landing.png) Landing page | ![Generate wizard](docs/screenshots/02-create-wizard.png) AI generation wizard |
 | ![Pack editor](docs/screenshots/03-pack-editor.png) Pack editor | ![Print preview](docs/screenshots/04-print-preview.png) Presenter script / print preview |
-| ![Host lobby](docs/screenshots/05-host-lobby.png) Host desk — lobby | ![Team join](docs/screenshots/06-team-join.png) Team portal — join screen |
+| ![Host lobby](docs/screenshots/05-host-lobby.png) Host desk — lobby, with a scannable join link | ![Team join](docs/screenshots/06-team-join.png) Team portal — join screen |
 | ![Host: question live](docs/screenshots/07-host-question-live.png) Host desk — question live | ![Team: answering](docs/screenshots/08-team-answer.png) Team portal — answering |
 | ![Host: live submission](docs/screenshots/09-host-live-submission.png) Host desk — live submission, auto-scored | ![Host: reveal + scoreboard](docs/screenshots/10-host-reveal-scoreboard.png) Host desk — revealed, scoreboard updated |
 | ![Team: reveal](docs/screenshots/11-team-reveal.png) Team portal — reveal, correct + score | |
