@@ -31,6 +31,7 @@ const pack: PackWithRounds = {
   title: "Test Pack",
   prompt: "",
   createdAt: new Date(),
+  creatorId: null,
   rounds: [round(0, 2), round(1, 1)],
 };
 
