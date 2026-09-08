@@ -2,6 +2,18 @@
 
 Reviewed the codebase in `pub-quiz-trivia-night-automation-hub` (Next.js App Router + Prisma/SQLite + Anthropic tool-use generation + react-pdf + polling live session). Overall it's a strong, well-tested MVP: a race-safe session state machine (conditional `updateMany` transitions), a real host-key/join-code security split, per-IP rate limiting, and unit/integration/e2e/load tests. The gaps below are mostly scope (features not built yet) plus a few things to fix before a real live event.
 
+## Status as of 2026-09-08
+
+Shipped since this review was written (verified on the production deploy):
+items 1 (per-question timer), 2 (question types — `TEXT` / `MULTIPLE_CHOICE`),
+3 (alternate answers per question), 4 (pack editor can add, delete and
+reorder), 5 (Turso + Upstash, env-var driven), plus the QR join code and JSON
+export/import from the nice-to-haves. The `/packs` list is still unscoped but
+packs now carry a `creatorId` (cookie-identified `Creator`, see
+`monetization-phase2-creator-design.md`), so per-user scoping is a filter
+away. Everything else below is still open. The original text is left intact
+as the record of what the review found.
+
 ## Highest-impact next features
 
 1. **Per-question timer.** Currently the host manually decides when to reveal — there's no countdown shown to teams, so there's no time pressure or "big screen" moment. Adding a host-set duration (e.g. 30s) with a synced countdown (derived from a `questionStartedAt` timestamp already implicit in the state transition) and auto-lock on expiry would be the single biggest "trivia night" feel upgrade.

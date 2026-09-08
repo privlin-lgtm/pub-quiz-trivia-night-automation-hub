@@ -124,6 +124,20 @@ curl -s -o /dev/null -w "%{http_code}\n" -X DELETE $B/api/packs/x   # expect 401
   minutes). Playwright also reuses any dev server already on port 4517
   (`reuseExistingServer` outside CI), so a stray server from another
   session can silently test old code.
+- **Sensitive Vercel env vars cannot be pulled.** `vercel env pull` writes
+  a placeholder for anything added with `--sensitive` (every secret here),
+  so `ANTHROPIC_API_KEY` is not obtainable locally and the local `.env`
+  value is empty. Anything that needs a real generation must run against
+  production (budget: rate limit 5 per 10 min per IP, real API credit per
+  call) or on a preview deploy. `vercel logs <url>` only streams from the
+  moment it starts — open it in the background *before* firing the request
+  whose error you want to read; `--json` lines carry `level`, `message`
+  and the route.
+- **Ad-hoc TypeScript scripts outside the repo tree** (e.g. in a scratch
+  directory) cannot resolve the repo's `node_modules` and, as `.ts`, hit
+  `Top-level await is currently not supported with the "cjs" output format`.
+  Use a `.mts` file, import repo modules by `file:///` URL, and run with
+  `node --env-file=<file> --import tsx script.mts` from the repo root.
 - **A worktree cannot be fully removed while the session that used it is
   open.** Claude Code keeps the worktree as its process cwd, so
   `git worktree remove` fails with `Permission denied` on the root
@@ -162,10 +176,8 @@ checkout, webhook, pricing page. **Provider decision changed this session
 Squeezy, to **Paddle** — matches the user's other project (HebCal) and
 this session has dedicated `paddle:*` skills available (`catalog-setup`,
 `checkout-web`, `webhooks`, `sandbox-testing`, `customer-portal`,
-`pricing-pages`). The plan doc itself (`claude/monetization-buildout-plan.md`
-line 37) still says Lemon Squeezy — update it to Paddle before writing a
-spec, since the VAT/Merchant-of-Record reasoning there applies to Paddle
-equally.
+`pricing-pages`). The plan doc (`claude/monetization-buildout-plan.md`,
+"Payments") now says Paddle and carries the two open questions below.
 
 Brainstorming for this step was started and then stopped mid-way
 (architectural path — new subsystem, no existing flow to bound against).

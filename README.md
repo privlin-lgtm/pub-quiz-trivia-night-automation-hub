@@ -74,6 +74,14 @@ Leaving either pair of env vars unset keeps today's local-dev behavior
 (a `prisma/dev.db` file, an in-process limiter) — both are additive, not a
 breaking config change.
 
+- **Function timeout**: a four-round generation takes 20–30s end to end,
+  well past the 10s default a serverless host gives a function.
+  `src/app/api/packs/generate/route.ts` exports `maxDuration = 60` for that
+  reason; if your host caps functions lower than that (or you raise the
+  default pack size), the request dies as a gateway 504 before the pack is
+  saved. The `/create` page shows that as a plain "server returned status
+  504" message rather than a JSON-parse error.
+
 No API key yet? `POST /api/packs/seed` creates a small static demo pack so you
 can exercise the editor, PDF export, and live session flow without calling
 Claude. There's also a CLI seed script: `npm run db:seed`.
@@ -83,6 +91,11 @@ Claude. There's also a CLI seed script: `npm run db:seed`.
 1. **Generate** — `/create` sends a free-text brief to
    `POST /api/packs/generate`, which calls Claude (via a forced tool call, so
    the response is schema-validated JSON) and persists the pack via Prisma.
+   Validation degrades rather than rejects where the fix is obvious: a
+   multiple-choice question with an unusable option set becomes free-text,
+   and a missing pack title is derived from the round titles
+   (`src/lib/quiz-schema.ts`) — both were observed in real model output and
+   each used to throw away an otherwise good 40-question pack.
 2. **Edit** — `/packs/[id]` lists rounds/questions for inline editing
    (`PATCH /api/questions/[id]`) and links to PDF exports
    (`GET /api/packs/[id]/pdf?type=questions|answers|script`). A pack can

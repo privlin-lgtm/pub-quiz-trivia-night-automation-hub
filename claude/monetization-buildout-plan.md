@@ -34,7 +34,9 @@ model Creator {
 
 ## Payments
 
-Lemon Squeezy (Merchant of Record) over Stripe — absorbs cross-border VAT/sales-tax registration for a niche that Phase 0 research confirmed sells across UK/US/EU. One webhook route, signature-verified, flips `Creator.plan` on subscription created/renewed/cancelled events.
+**Paddle** (Merchant of Record) over Stripe — absorbs cross-border VAT/sales-tax registration for a niche that Phase 0 research confirmed sells across UK/US/EU. One webhook route, signature-verified, flips `Creator.plan` on subscription created/renewed/cancelled events.
+
+*Provider changed 2026-09-08: this plan originally named Lemon Squeezy. Switched to Paddle to match the user's other project (HebCal) and because the Claude Code environment has dedicated `paddle:*` skills (`catalog-setup`, `checkout-web`, `webhooks`, `sandbox-testing`, `customer-portal`, `pricing-pages`). The MoR reasoning is identical for both. Still to decide before building step 3: whether to reuse the HebCal Paddle seller account or open a separate one, and the launch pricing interval (monthly ~$5, monthly + annual ~$25/yr, or annual only).*
 
 ## Infra fixes that stop being optional once this is a real public deploy
 
