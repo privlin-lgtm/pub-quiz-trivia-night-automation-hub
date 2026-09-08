@@ -5,12 +5,13 @@ Repo: https://github.com/privlin-lgtm/pub-quiz-trivia-night-automation-hub (bran
 
 ## Where things stand
 
-Local `master` is in sync with `origin/master` at `b98fab4`, and production
-runs that commit: the Vercel build for it succeeded and the live site was
-smoke-checked afterwards (home, `/api/packs`, `/manifest.webmanifest`, all
-six icon and favicon URLs 200, manifest link, apple-touch-icon and
-theme-color meta present in the head). Working tree is clean apart from
-this file. `.env.local` (gitignored) holds the current `ADMIN_TOKEN`.
+Local `master` is in sync with `origin/master` at `4e0ee66`, and production
+runs that commit (deployment `2b1sizfft`, 2026-09-08 13:43). The earlier
+`b98fab4` smoke (home, `/api/packs`, `/manifest.webmanifest`, all six icon
+and favicon URLs 200, manifest link, apple-touch-icon and theme-color meta
+present in the head) still holds; the default-brief generation path was
+verified on `4e0ee66` (see below). Working tree is clean apart from this
+file. `.env.local` (gitignored) holds the current `ADMIN_TOKEN`.
 
 Another Claude session has been committing to this repo concurrently
 (brand mark `c5293de`, PR #2, the readiness cross-check `d468d06`, and an
@@ -29,6 +30,23 @@ was deleted after extraction; nothing in the repo depends on it.
 
 All verified on production unless noted.
 
+- **Default-brief generation fixed (2026-09-08 afternoon), three defects.**
+  `9565e01`: `maxDuration = 60` on `POST /api/packs/generate` (platform
+  default 10s; a four-round generation takes 20–28s) and the `/create` client
+  no longer `JSON.parse`s a `text/plain` gateway error. `4e0ee66`: the model
+  omits the top-level pack `title` about two runs in five, and
+  `generatedPackSchema` was rejecting the whole pack for it — now derives a
+  title from the round titles. Verified 5/5 on production including one real
+  browser click through the wizard; full evidence in
+  `docs/portfolio-readiness.md` "Closed 2026-09-08 afternoon". Production
+  smoke for this path (rate limit is 5 per 10 min per IP, and each run
+  spends a real Anthropic call):
+
+  ```bash
+  curl -s -o /dev/null -w "%{http_code} %{time_total}s\n" -X POST -H "Content-Type: application/json" \
+    -d '{"prompt":"A Friday-night pub quiz: four rounds covering 90s music, UK geography, movie quotes, and a picture-round-style general knowledge closer. Keep answers short and pub-friendly."}' \
+    $B/api/packs/generate   # expect 201 in 20-30s
+  ```
 - **Vercel build and Turso migration.** Build script is
   `prisma generate && prisma migrate deploy && next build`, so a stale
   generated client and an unapplied migration can no longer break a deploy.
@@ -118,8 +136,16 @@ curl -s -o /dev/null -w "%{http_code}\n" -X DELETE $B/api/packs/x   # expect 401
   a live QR check. Harmless. There is no session cleanup or TTL (known
   limitation in `claude/improvement-roadmap.md`).
 - **Studio site** (`Projects/Yanshuf`): restore the live-demo button and set
-  the Pub Quiz card status back to "Live". Recorded in
-  `docs/portfolio-readiness.md`.
+  the Pub Quiz card status back to "Live". The gate that page set for itself
+  (default brief generates in a real browser) was met on 2026-09-08
+  afternoon; see `docs/portfolio-readiness.md`. The button was restored once
+  already on the morning's premature all-clear and reverted within the hour —
+  this time the evidence includes a browser run on the deployed commit.
+- **Verification packs** from the 2026-09-08 smoke runs (about ten
+  four-round packs titled "Friday Night Lights…" / "Friday Night Fever Quiz")
+  sit in the production database. Harmless; delete via
+  `DELETE /api/packs/[id]` with `x-admin-token` if the `/packs` list gets
+  noisy.
 - **`npm audit`** still reports 3 high findings in the dev-only
   `prisma` → `@prisma/config` → `deepmerge-ts` chain; no fix without
   `prisma@8` RC.

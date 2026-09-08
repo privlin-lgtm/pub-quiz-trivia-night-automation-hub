@@ -381,3 +381,50 @@ back to status "Shipped" with no link.
 **The link goes back only when generating from the wizard's default brief
 succeeds in a browser.** Not on a passing test suite, and not on this document
 saying so — that is exactly the mistake that was made once already.
+
+---
+
+# Closed 2026-09-08 afternoon — default brief generates in a browser
+
+Two commits, both verified on production after deploy.
+
+## `9565e01` — the timeout and the JSON-parse crash
+
+`export const maxDuration = 60` on the generate route; the client checks
+`content-type` before `res.json()` and shows a status-bearing message
+otherwise. Measured on production with the default brief via curl: 201 in
+20.8s, 21.2s, 27.8s. Cause confirmed as the platform's 10s default — before
+the fix every attempt died at ~11.6s with a `text/plain` 504. A four-round
+generation runs 20–28s, so 60s (the ceiling without Fluid compute) has
+headroom.
+
+## A third defect, found while verifying — `4e0ee66`
+
+Two of the five verification runs on `9565e01` (one curl, one real browser
+click) still failed, now with a JSON 502 and the runtime log line:
+
+```
+Generated quiz pack failed validation: path ["title"] expected string, received undefined
+```
+
+The model omits the top-level pack `title` roughly two runs in five, on the
+default brief and on one-round prompts alike, and `generatedPackSchema`
+rejected the whole 40-question pack for it. Same failure class as the
+`MULTIPLE_CHOICE` one in `101a4c7`: a cosmetic field sinking the pack. The
+schema now accepts a missing or blank title and derives one from the round
+titles (`"90s Music · UK Geography …"`). Unit tests cover missing, blank, and
+provided titles.
+
+## Verification on `4e0ee66` (deployment `2b1sizfft`, 13:43)
+
+- curl, default brief, four runs: 201 at 27.2s, 20.4s, 24.1s, 23.6s; every
+  pack 4 rounds / 40 questions with a model-provided title.
+- **Real browser:** opened `/create`, left the default brief, clicked
+  **Generate pack**. "Generating…" for ~25s, then redirected to
+  `/packs/cmtsk06in002k04k5j8ofr37w` — "Friday Night Lights: The Ultimate
+  Pub Quiz", 4 rounds · 40 questions. Network log: `POST /api/packs/generate
+  → 201`.
+- `npm run test` 85/85, `npm run test:integration` 70/70, `tsc`, `eslint` clean.
+
+The studio-site gate above is met. Restore the live-demo link on
+yanshufstudio.com and set the Pub Quiz card back to "Live".
