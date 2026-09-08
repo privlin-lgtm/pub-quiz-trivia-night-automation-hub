@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
     return res;
   }
 
-  const pack = await createPackFromGenerated(generated, parsed.data.prompt);
+  const pack = await createPackFromGenerated(generated, parsed.data.prompt, creator.id);
   // withRolledPeriod returns the *same* object reference when the period
   // hasn't expired, and a *new* one when it has — so reference inequality
   // here reliably detects a roll (see src/lib/creator.test.ts). When the
@@ -89,15 +89,12 @@ export async function POST(req: NextRequest) {
   // that happened before the (multi-second) Anthropic call above — otherwise
   // two concurrent requests on the same cookie can race and lose an update.
   const periodRolled = rolled.periodStartedAt !== creator.periodStartedAt;
-  await db.$transaction([
-    db.creator.update({
-      where: { id: creator.id },
-      data: periodRolled
-        ? { packsGeneratedInPeriod: 1, periodStartedAt: rolled.periodStartedAt }
-        : { packsGeneratedInPeriod: { increment: 1 } },
-    }),
-    db.quizPack.update({ where: { id: pack.id }, data: { creatorId: creator.id } }),
-  ]);
+  await db.creator.update({
+    where: { id: creator.id },
+    data: periodRolled
+      ? { packsGeneratedInPeriod: 1, periodStartedAt: rolled.periodStartedAt }
+      : { packsGeneratedInPeriod: { increment: 1 } },
+  });
 
   const res = NextResponse.json({ pack }, { status: 201 });
   setCookieOn(res);

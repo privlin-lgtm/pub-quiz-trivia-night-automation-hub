@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { parseOptions } from "@/lib/question-types";
+import { requirePackOwner } from "@/lib/pack-access";
 
 const createSchema = z.object({
   roundId: z.string().min(1),
@@ -24,6 +25,8 @@ export async function POST(req: NextRequest) {
   if (!round) {
     return NextResponse.json({ error: "Round not found" }, { status: 404 });
   }
+  const forbidden = await requirePackOwner(req, { roundId: round.id });
+  if (forbidden) return forbidden;
 
   const question = await db.question.create({
     data: {

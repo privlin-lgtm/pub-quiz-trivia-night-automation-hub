@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { isValidOptionSet, parseOptions, QUESTION_TYPE, serializeOptions } from "@/lib/question-types";
+import { requirePackOwner } from "@/lib/pack-access";
 import type { Prisma } from "@prisma/client";
 
 const updateSchema = z.object({
@@ -28,6 +29,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!existing) {
     return NextResponse.json({ error: "Question not found" }, { status: 404 });
   }
+  const forbidden = await requirePackOwner(req, { questionId: id });
+  if (forbidden) return forbidden;
 
   const { type, options: rawOptions, acceptableAnswers: rawAcceptableAnswers, ...rest } = parsed.data;
   const effectiveType = type ?? existing.type;
@@ -81,12 +84,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   });
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const existing = await db.question.findUnique({ where: { id } });
   if (!existing) {
     return NextResponse.json({ error: "Question not found" }, { status: 404 });
   }
+  const forbidden = await requirePackOwner(req, { questionId: id });
+  if (forbidden) return forbidden;
 
   const siblingCount = await db.question.count({ where: { roundId: existing.roundId } });
   if (siblingCount <= 1) {

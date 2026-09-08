@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requirePackOwner } from "@/lib/pack-access";
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const existing = await db.round.findUnique({ where: { id } });
   if (!existing) {
     return NextResponse.json({ error: "Round not found" }, { status: 404 });
   }
+  const forbidden = await requirePackOwner(req, { packId: existing.packId });
+  if (forbidden) return forbidden;
 
   const siblingCount = await db.round.count({ where: { packId: existing.packId } });
   if (siblingCount <= 1) {

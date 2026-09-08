@@ -6,13 +6,15 @@ import { PATCH as updateQuestion } from "@/app/api/questions/[id]/route";
 import { createPackFromGenerated } from "@/lib/create-pack";
 import { DEMO_PACK, DEMO_PACK_PROMPT } from "@/lib/demo-pack";
 import { db } from "@/lib/db";
+import { testOwner } from "./owner-fixture";
 
 const BASE = "http://localhost:3000";
+const owner = await testOwner();
 
 function jsonRequest(url: string, method: string, body?: unknown) {
   return new NextRequest(url, {
     method,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...owner.cookieHeader },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
 }
@@ -36,7 +38,8 @@ describe("GET /api/packs/[id]/pdf", () => {
     // intermittent cross-file test-order bug, not a one-off flake.
     const pack = await createPackFromGenerated(
       { ...DEMO_PACK, title: "PDF Route Test Pack (dedicated — not the shared seed pack)" },
-      DEMO_PACK_PROMPT
+      DEMO_PACK_PROMPT,
+      owner.id
     );
     packId = pack.id;
     questionId = pack.rounds[0].questions[0].id;
@@ -116,7 +119,8 @@ describe("PATCH /api/questions/[id]", () => {
     // picked up by /api/packs/seed's findFirst-by-title in other test files.
     const pack = await createPackFromGenerated(
       { ...DEMO_PACK, title: "PATCH Question Test Pack (dedicated — not the shared seed pack)" },
-      DEMO_PACK_PROMPT
+      DEMO_PACK_PROMPT,
+      owner.id
     );
     questionId = pack.rounds[0].questions[1].id;
   });

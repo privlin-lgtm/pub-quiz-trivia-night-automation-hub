@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createPackFromGenerated } from "@/lib/create-pack";
+import { getOrCreateCreator } from "@/lib/creator";
 import { PACK_FILE_FORMAT, PACK_FILE_VERSION, packFileSchema } from "@/lib/pack-file";
 import { rateLimit } from "@/lib/rate-limit";
 
@@ -31,7 +32,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error }, { status: 400 });
   }
 
+  // The importer owns the copy — this is how a visitor turns a shared
+  // (ownerless) pack into one they can edit. Creating a Creator row here is
+  // the same cost as on generate, and only happens on a successful parse.
+  const { creator, setCookieOn } = await getOrCreateCreator(req);
   const { title, prompt, rounds } = parsed.data;
-  const pack = await createPackFromGenerated({ title, rounds }, prompt ?? `Imported pack: ${title}`);
-  return NextResponse.json({ pack }, { status: 201 });
+  const pack = await createPackFromGenerated({ title, rounds }, prompt ?? `Imported pack: ${title}`, creator.id);
+  const res = NextResponse.json({ pack }, { status: 201 });
+  setCookieOn(res);
+  return res;
 }

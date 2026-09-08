@@ -11,11 +11,15 @@ type PackInput = Omit<GeneratedPack, "rounds"> & {
   rounds: (Omit<GeneratedPack["rounds"][number], "questions"> & { questions: QuestionInput[] })[];
 };
 
-export async function createPackFromGenerated(generated: PackInput, prompt: string) {
+/** `creatorId` null makes an ownerless pack: listed for everyone, editable by
+ * no one (see src/lib/pack-access.ts). The seeded demo pack is the one
+ * intended case; generate and import always pass a real creator. */
+export async function createPackFromGenerated(generated: PackInput, prompt: string, creatorId: string | null = null) {
   return db.quizPack.create({
     data: {
       title: generated.title,
       prompt,
+      creatorId,
       rounds: {
         create: generated.rounds.map((round, roundIndex) => ({
           index: roundIndex,

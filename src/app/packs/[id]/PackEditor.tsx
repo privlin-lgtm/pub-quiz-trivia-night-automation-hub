@@ -56,7 +56,11 @@ function omitKey<T>(record: Record<string, T>, key: string): Record<string, T> {
   return next;
 }
 
-export function PackEditor({ pack }: { pack: Pack }) {
+/** `canEdit` false = a shared (ownerless) pack, or one another creator owns:
+ * every field is shown read-only and the add/delete/reorder controls are
+ * hidden. The server enforces the same rule (403) — this only keeps the UI
+ * honest about it. Export, print and starting a session stay available. */
+export function PackEditor({ pack, canEdit }: { pack: Pack; canEdit: boolean }) {
   const router = useRouter();
   // The pack's own structure (which rounds, which questions, in what order)
   // lives in state, separate from `drafts` below (which only tracks each
@@ -359,6 +363,13 @@ export function PackEditor({ pack }: { pack: Pack }) {
 
       {error ? <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p> : null}
 
+      {!canEdit ? (
+        <p className="mt-4 rounded-lg border border-line bg-white px-3 py-2 text-sm text-muted" role="note">
+          This is a shared pack, so it&apos;s read-only here. Export JSON, then import it from the packs list to get your
+          own editable copy.
+        </p>
+      ) : null}
+
       <div className="mt-8 space-y-8">
         {rounds.map((round, roundIndex) => (
           <section key={round.id} className="paper-sheet rounded-xl border border-line p-5 sm:p-6">
@@ -370,6 +381,7 @@ export function PackEditor({ pack }: { pack: Pack }) {
                 <h2 className="mt-1 text-xl font-semibold">{round.title}</h2>
                 <p className="text-sm text-muted">{round.category}</p>
               </div>
+              {canEdit ? (
               <div className="flex shrink-0 items-center gap-1.5">
                 <button
                   type="button"
@@ -412,6 +424,7 @@ export function PackEditor({ pack }: { pack: Pack }) {
                   </button>
                 ) : null}
               </div>
+              ) : null}
             </div>
 
             <ul className="mt-5 space-y-6">
@@ -423,6 +436,7 @@ export function PackEditor({ pack }: { pack: Pack }) {
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div className="flex items-center gap-3">
                         <span className="text-sm font-semibold">Q{question.index + 1}</span>
+                        {canEdit ? (
                         <div className="flex rounded-lg border border-line bg-white p-0.5 text-xs font-medium">
                           <button
                             type="button"
@@ -443,7 +457,13 @@ export function PackEditor({ pack }: { pack: Pack }) {
                             Multiple choice
                           </button>
                         </div>
+                        ) : (
+                          <span className="text-xs text-muted">
+                            {draft.type === "MULTIPLE_CHOICE" ? "Multiple choice" : "Free text"}
+                          </span>
+                        )}
                       </div>
+                      {canEdit ? (
                       <div className="flex items-center gap-3">
                         <span className="text-xs text-muted">
                           {saveState === "saving"
@@ -477,6 +497,7 @@ export function PackEditor({ pack }: { pack: Pack }) {
                           </button>
                         ) : null}
                       </div>
+                      ) : null}
                     </div>
                     <label className="block">
                       <span className="sr-only">Question text</span>
@@ -484,6 +505,7 @@ export function PackEditor({ pack }: { pack: Pack }) {
                         value={draft.text}
                         onChange={(e) => updateDraft(question.id, { text: e.target.value })}
                         onBlur={() => saveQuestion(question.id)}
+                        readOnly={!canEdit}
                         rows={2}
                         className="w-full rounded-lg border border-line bg-white px-3 py-2 text-base outline-none focus:ring-2 focus:ring-amber"
                       />
@@ -501,7 +523,7 @@ export function PackEditor({ pack }: { pack: Pack }) {
                               name={`correct-${question.id}`}
                               checked={option === draft.answer && option.trim().length > 0}
                               onChange={() => markOptionCorrect(question.id, i)}
-                              disabled={!option.trim()}
+                              disabled={!canEdit || !option.trim()}
                               className="h-4 w-4 accent-amber"
                               aria-label={`Option ${i + 1} is correct`}
                             />
@@ -509,9 +531,11 @@ export function PackEditor({ pack }: { pack: Pack }) {
                               value={option}
                               onChange={(e) => updateOption(question.id, i, e.target.value)}
                               onBlur={() => saveQuestion(question.id)}
+                              readOnly={!canEdit}
                               placeholder={`Option ${i + 1}`}
                               className="h-10 w-full rounded-lg border border-line bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-amber"
                             />
+                            {canEdit ? (
                             <button
                               type="button"
                               onClick={() => removeOption(question.id, i)}
@@ -521,8 +545,10 @@ export function PackEditor({ pack }: { pack: Pack }) {
                             >
                               ×
                             </button>
+                            ) : null}
                           </div>
                         ))}
+                        {canEdit ? (
                         <button
                           type="button"
                           onClick={() => addOption(question.id)}
@@ -531,6 +557,7 @@ export function PackEditor({ pack }: { pack: Pack }) {
                         >
                           + Add option
                         </button>
+                        ) : null}
                       </div>
                     ) : null}
 
@@ -544,6 +571,7 @@ export function PackEditor({ pack }: { pack: Pack }) {
                             value={draft.answer}
                             onChange={(e) => updateDraft(question.id, { answer: e.target.value })}
                             onBlur={() => saveQuestion(question.id)}
+                            readOnly={!canEdit}
                             className="h-11 w-full rounded-lg border border-line bg-white px-3 text-base outline-none focus:ring-2 focus:ring-amber"
                           />
                         </label>
@@ -563,6 +591,7 @@ export function PackEditor({ pack }: { pack: Pack }) {
                             updateDraft(question.id, { points: Number(e.target.value) || 1 })
                           }
                           onBlur={() => saveQuestion(question.id)}
+                          readOnly={!canEdit}
                           className="h-11 w-full rounded-lg border border-line bg-white px-3 text-base outline-none focus:ring-2 focus:ring-amber"
                         />
                       </label>
@@ -577,6 +606,7 @@ export function PackEditor({ pack }: { pack: Pack }) {
                           value={draft.acceptableAnswersText}
                           onChange={(e) => updateDraft(question.id, { acceptableAnswersText: e.target.value })}
                           onBlur={() => saveQuestion(question.id)}
+                          readOnly={!canEdit}
                           placeholder="e.g. Leo, Leonardo"
                           className="h-11 w-full rounded-lg border border-line bg-white px-3 text-base outline-none focus:ring-2 focus:ring-amber"
                         />
@@ -589,6 +619,7 @@ export function PackEditor({ pack }: { pack: Pack }) {
                 );
               })}
             </ul>
+            {canEdit ? (
             <button
               type="button"
               onClick={() => addQuestion(round.id)}
@@ -596,6 +627,7 @@ export function PackEditor({ pack }: { pack: Pack }) {
             >
               + Add question
             </button>
+            ) : null}
           </section>
         ))}
       </div>

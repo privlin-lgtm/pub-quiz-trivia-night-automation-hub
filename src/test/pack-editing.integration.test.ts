@@ -8,13 +8,15 @@ import { POST as moveRound } from "@/app/api/rounds/[id]/move/route";
 import { createPackFromGenerated } from "@/lib/create-pack";
 import { DEMO_PACK_PROMPT } from "@/lib/demo-pack";
 import { db } from "@/lib/db";
+import { testOwner } from "./owner-fixture";
 
 const BASE = "http://localhost:3000";
+const owner = await testOwner();
 
 function jsonRequest(url: string, method: string, body?: unknown) {
   return new NextRequest(url, {
     method,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...owner.cookieHeader },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
 }
@@ -55,7 +57,8 @@ async function freshPack() {
         },
       ],
     },
-    DEMO_PACK_PROMPT
+    DEMO_PACK_PROMPT,
+    owner.id
   );
 }
 
