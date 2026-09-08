@@ -33,13 +33,16 @@ export default function CreatePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt }),
       });
-      const data = await res.json();
-      if (!res.ok) {
+      const isJson = res.headers.get("content-type")?.includes("application/json");
+      const data = isJson ? await res.json() : null;
+      if (!res.ok || !data) {
         setNotConfigured(res.status === 503);
-        if (res.status === 403) {
+        if (res.status === 403 && data) {
           setUsage({ used: data.packsGeneratedInPeriod, limit: data.limit, plan: "FREE" });
         }
-        throw new Error(data.error ?? "Generation failed");
+        throw new Error(
+          data?.error ?? `Generation failed (server returned status ${res.status}). Please try again.`
+        );
       }
       router.push(`/packs/${data.pack.id}`);
     } catch (err) {

@@ -315,3 +315,69 @@ as a team), no errors.
 **Action for whoever next touches the studio site:** it's clear to restore the
 live-demo button and change the status tag back from "Shipped" to "Live" on
 the Pub Quiz card.
+
+---
+
+# Reopened 2026-09-08 — generation 504s on the default brief
+
+Closed prematurely. The 502 fix in `101a4c7` is real and holds, but a **second,
+separate failure** was never exercised, and it is the one a visitor hits first.
+
+## What happens
+
+1. Open `/create` on the live deployment.
+2. Leave the **pre-filled default brief** as it is — "A Friday-night pub quiz:
+   four rounds covering 90s music, UK geography, movie quotes, and a
+   picture-round-style general knowledge closer. Keep answers short and
+   pub-friendly."
+3. Click **Generate pack**.
+
+Result: browser console logs `Failed to load resource: the server responded with
+a status of 504`. The page shows:
+
+```
+Unexpected token 'A', "An error o"... is not valid JSON
+```
+
+Reproduced in a real browser on 2026-09-08. `/api/creator/status` still reports
+`{"plan":"FREE","packsGeneratedInPeriod":0,"limit":2}` afterwards, so the request
+dies before the pack is recorded and no quota is consumed.
+
+## Why the 2026-09-07 verification missed it
+
+The closing tests used deliberately small prompts — "one round on rivers, one
+round on 1990s pop music, **three questions per round**". Those finish inside
+Vercel's execution limit and return 201, which is what was recorded as proof.
+
+The wizard's own default brief asks for **four rounds**. That generation takes
+long enough to exceed the function's timeout. So the single most likely action a
+first-time visitor takes is the one that fails, and every test run so far avoided
+it by using a smaller prompt than the UI suggests.
+
+## Two separate defects
+
+**1. The timeout.** `POST /api/packs/generate` exceeds the serverless execution
+limit for realistically-sized briefs. Options, roughly in order of effort:
+
+- Set `export const maxDuration = 60` (or higher, per plan) on the route segment.
+  Cheapest, and may be sufficient on its own — worth measuring how long a
+  four-round generation actually takes before assuming.
+- Stream the response so the connection stays alive.
+- Move generation to a background job and have the client poll, which is the only
+  option that scales past any fixed ceiling.
+
+**2. The client parses every response as JSON.** It calls `JSON.parse` on
+whatever comes back, so an HTML gateway-error page surfaces to the user as
+`Unexpected token 'A'`. Check `res.ok` and the content type first, and show a
+real message. This is worth fixing regardless of the timeout, because it turns
+every infrastructure-level failure into gibberish.
+
+## Consequence elsewhere
+
+The live-demo link was restored on yanshufstudio.com this morning on the strength
+of this document, then reverted within the hour once tested. The Pub Quiz card is
+back to status "Shipped" with no link.
+
+**The link goes back only when generating from the wizard's default brief
+succeeds in a browser.** Not on a passing test suite, and not on this document
+saying so — that is exactly the mistake that was made once already.

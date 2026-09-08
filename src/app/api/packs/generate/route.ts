@@ -7,6 +7,11 @@ import { MissingApiKeyError } from "@/lib/anthropic";
 import { canGenerate, getOrCreateCreator, withRolledPeriod, FREE_LIMIT } from "@/lib/creator";
 import { db } from "@/lib/db";
 
+// Default wizard brief (four rounds) exceeds the platform's default function
+// timeout. Raise the ceiling; see docs/portfolio-readiness.md "Reopened
+// 2026-09-08" for the measured cause.
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   // Each call spends real Anthropic API credit, so this is throttled
   // per-IP to bound the cost of a scripted abuse loop hitting a public URL.
