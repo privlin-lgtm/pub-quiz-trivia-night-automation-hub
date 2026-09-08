@@ -17,6 +17,14 @@ Another Claude session has been committing to this repo concurrently
 edit to this file). Run `git fetch` and `git status` before assuming the
 tree matches what the last message in any one session said.
 
+`c5293de` itself: applied the design-provided icon pack
+(`Favicon and branding mark options.zip`, delivered as a chat attachment,
+not committed) — favicon, App Router `icon.png`/`apple-icon.png`, two
+`public/` PWA sizes, and the `BrandMark.tsx` header logo swapped in for
+the old amber dot. Verified by running the dev server in the Browser pane
+and reading back the rendered header before committing. The source zip
+was deleted after extraction; nothing in the repo depends on it.
+
 ## Shipped in the 2026-09-07/08 sessions
 
 All verified on production unless noted.
