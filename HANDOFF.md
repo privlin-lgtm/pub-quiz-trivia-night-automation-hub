@@ -5,11 +5,17 @@ Repo: https://github.com/privlin-lgtm/pub-quiz-trivia-night-automation-hub (bran
 
 ## Where things stand
 
-Local `master` is now fully in sync with `origin/master` (HEAD `b98fab4`,
-includes the brand mark, installable PWA, and portfolio-readiness
-cross-check listed below — all pushed since this doc was first written).
-Working tree is clean. `.env.local` (gitignored) holds the current
-`ADMIN_TOKEN`.
+Local `master` is in sync with `origin/master` at `b98fab4`, and production
+runs that commit: the Vercel build for it succeeded and the live site was
+smoke-checked afterwards (home, `/api/packs`, `/manifest.webmanifest`, all
+six icon and favicon URLs 200, manifest link, apple-touch-icon and
+theme-color meta present in the head). Working tree is clean apart from
+this file. `.env.local` (gitignored) holds the current `ADMIN_TOKEN`.
+
+Another Claude session has been committing to this repo concurrently
+(brand mark `c5293de`, PR #2, the readiness cross-check `d468d06`, and an
+edit to this file). Run `git fetch` and `git status` before assuming the
+tree matches what the last message in any one session said.
 
 ## Shipped in the 2026-09-07/08 sessions
 
@@ -36,8 +42,9 @@ All verified on production unless noted.
   editor, "Import pack" on `/packs`. Format `pub-quiz-pack` v1, ids
   stripped, host-approved alternate answers kept. Import is rate limited
   like seed and does not count against the free-tier generation cap.
-- **Installable PWA** (not yet deployed, see above). Manifest, theme colour,
-  maskable icon. No service worker on purpose: the live session is polling.
+- **Installable PWA.** Manifest, theme colour, maskable icon, using the
+  "Coaster" brand-mark icon set. No service worker on purpose: the live
+  session is polling.
 
 ## How to verify
 
