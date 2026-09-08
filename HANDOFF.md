@@ -5,23 +5,11 @@ Repo: https://github.com/privlin-lgtm/pub-quiz-trivia-night-automation-hub (bran
 
 ## Where things stand
 
-Production runs `b59a993` (pack export/import) and is healthy. Three commits sit
-on local `master` ahead of `origin/master`, not yet pushed:
-
-| Commit | What |
-|---|---|
-| `c5293de` | "Coaster" brand mark: new favicon set, `BrandMark.tsx`, header logo (committed from another session) |
-| `1a51206` | Installable PWA: `src/app/manifest.ts`, theme colour, icon set wired, `e2e/pwa.spec.ts` |
-| `d468d06` | Cross-check note appended to `docs/portfolio-readiness.md` (from the studio-site session) |
-
-Push when ready. A push triggers a Vercel build; the last four pushes all
-built green in about 35 seconds.
-
-```bash
-git push origin master
-```
-
-Working tree is clean. `.env.local` (gitignored) holds the current `ADMIN_TOKEN`.
+Local `master` is now fully in sync with `origin/master` (HEAD `b98fab4`,
+includes the brand mark, installable PWA, and portfolio-readiness
+cross-check listed below — all pushed since this doc was first written).
+Working tree is clean. `.env.local` (gitignored) holds the current
+`ADMIN_TOKEN`.
 
 ## Shipped in the 2026-09-07/08 sessions
 
@@ -111,8 +99,30 @@ curl -s -o /dev/null -w "%{http_code}\n" -X DELETE $B/api/packs/x   # expect 401
 
 ## Next per the plan
 
-`claude/monetization-buildout-plan.md`, build order step 3: Lemon Squeezy
-checkout, webhook, pricing page. Blocked on a Lemon Squeezy account, store,
-product, API key and webhook secret being set as Vercel env vars. The
-`Creator` model and free-tier cap (step 2) are already live. Step 5 (QR,
-PWA) is done except for pushing `1a51206`.
+`claude/monetization-buildout-plan.md`, build order step 3: payment
+checkout, webhook, pricing page. **Provider decision changed this session
+(2026-09-08):** switching from the plan doc's original pick, Lemon
+Squeezy, to **Paddle** — matches the user's other project (HebCal) and
+this session has dedicated `paddle:*` skills available (`catalog-setup`,
+`checkout-web`, `webhooks`, `sandbox-testing`, `customer-portal`,
+`pricing-pages`). The plan doc itself (`claude/monetization-buildout-plan.md`
+line 37) still says Lemon Squeezy — update it to Paddle before writing a
+spec, since the VAT/Merchant-of-Record reasoning there applies to Paddle
+equally.
+
+Brainstorming for this step was started and then stopped mid-way
+(architectural path — new subsystem, no existing flow to bound against).
+Two clarifying questions are still open, asked but dismissed without an
+answer:
+
+1. **Paddle account scope** — reuse the same Paddle seller account as
+   HebCal (new product/price under it) or a fully separate account for
+   this app?
+2. **Pricing interval(s)** at launch — monthly only (~$5), monthly +
+   annual (~$5/mo or ~$25/yr, matches the plan doc's original framing), or
+   annual only (~$25/yr)?
+
+Resume by re-asking these two before proposing an approach. The `Creator`
+model and free-tier cap (step 2) are already live (`prisma/schema.prisma`
+`model Creator`, `src/lib/creator.ts`). No Paddle code, no `/pricing` page,
+and no `paddle:*` skill has been invoked yet — nothing to roll back.
