@@ -125,4 +125,37 @@ describe("generatedPackSchema", () => {
       expect(types).toEqual(["TEXT", "TEXT", "MULTIPLE_CHOICE"]);
     }
   });
+
+  // Observed in production 2026-09-08: roughly two in five generations
+  // (default four-round brief and one-round prompts alike) arrived without
+  // the top-level `title`, and the whole pack was rejected with a 502 for
+  // a field that is purely cosmetic. Derive one from the rounds instead.
+  it("derives a title from the round titles when the model omits it", () => {
+    const result = generatedPackSchema.safeParse({
+      rounds: [
+        { title: "90s Music", category: "Music", questions: [{ text: "Q?", answer: "A" }] },
+        { title: "UK Geography", category: "Geography", questions: [{ text: "Q?", answer: "A" }] },
+      ],
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.title).toBe("90s Music · UK Geography");
+  });
+
+  it("derives a title when the model sends an empty one", () => {
+    const result = generatedPackSchema.safeParse({
+      title: "   ",
+      rounds: [{ title: "Rivers", category: "Geography", questions: [{ text: "Q?", answer: "A" }] }],
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.title).toBe("Rivers");
+  });
+
+  it("keeps a title the model did provide", () => {
+    const result = generatedPackSchema.safeParse({
+      title: "Friday Night Lights",
+      rounds: [{ title: "Rivers", category: "Geography", questions: [{ text: "Q?", answer: "A" }] }],
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.title).toBe("Friday Night Lights");
+  });
 });

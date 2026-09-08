@@ -32,10 +32,19 @@ export const generatedRoundSchema = z.object({
   questions: z.array(generatedQuestionSchema).min(1),
 });
 
-export const generatedPackSchema = z.object({
-  title: z.string().min(1),
-  rounds: z.array(generatedRoundSchema).min(1),
-});
+// The pack title is cosmetic, and the model omits it (or sends whitespace)
+// in roughly two of five generations even though the tool schema marks it
+// required. Rejecting the whole pack over it turned a 20-second, 40-question
+// generation into a 502. Fall back to the round titles instead.
+export const generatedPackSchema = z
+  .object({
+    title: z.string().trim().optional(),
+    rounds: z.array(generatedRoundSchema).min(1),
+  })
+  .transform((pack) => ({
+    ...pack,
+    title: pack.title || pack.rounds.map((round) => round.title).join(" · "),
+  }));
 
 export type GeneratedPack = z.infer<typeof generatedPackSchema>;
 export type GeneratedRound = z.infer<typeof generatedRoundSchema>;
