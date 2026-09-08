@@ -91,6 +91,18 @@ curl -s -o /dev/null -w "%{http_code}\n" -X DELETE $B/api/packs/x   # expect 401
   lines to `.gitignore` once; reverted.
 - **Playwright `getByRole("alert")`** matches Next's dev overlay region as
   well as the app's own alert; filter by text.
+- **A fresh git worktree here has no `node_modules`, and a junction to the
+  main checkout's copy does not work** — Turbopack aborts with `Symlink
+  [project]/node_modules is invalid, it points out of the filesystem root`.
+  Run `npm ci && npx prisma generate` inside the worktree (about two
+  minutes). Playwright also reuses any dev server already on port 4517
+  (`reuseExistingServer` outside CI), so a stray server from another
+  session can silently test old code.
+- **A worktree cannot be fully removed while the session that used it is
+  open.** Claude Code keeps the worktree as its process cwd, so
+  `git worktree remove` fails with `Permission denied` on the root
+  directory. Delete the contents, `git worktree prune`, and `rmdir` the
+  empty root after the session closes.
 
 ## Open items
 
@@ -103,6 +115,10 @@ curl -s -o /dev/null -w "%{http_code}\n" -X DELETE $B/api/packs/x   # expect 401
 - **`npm audit`** still reports 3 high findings in the dev-only
   `prisma` → `@prisma/config` → `deepmerge-ts` chain; no fix without
   `prisma@8` RC.
+- **Empty `.claude/worktrees/sad-brattain-23a4d3/`** left behind by the PR #2
+  session (cwd lock, see Gotchas). Branch and worktree registration are
+  already gone; `rmdir` it from the main checkout once that session is
+  closed.
 
 ## Next per the plan
 
