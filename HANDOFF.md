@@ -30,6 +30,15 @@ was deleted after extraction; nothing in the repo depends on it.
 
 All verified on production unless noted.
 
+- **Pack ownership (2026-09-08 afternoon, `5eb1eba`).** Packs are editable
+  only by the `pq_creator` cookie holder matching `creatorId`
+  (`src/lib/pack-access.ts`); `/packs` lists shared (ownerless) packs plus
+  the visitor's own; ownerless packs — the seeded demo — are read-only for
+  everyone, and Export → Import takes an editable copy. Import now stamps
+  the importer. Before this, any visitor could rewrite or delete any pack.
+  Tests: `src/test/pack-access.integration.test.ts`; suites that mutate
+  packs use `src/test/owner-fixture.ts`. Verified on production with curl
+  (403 on demo-pack edits, reads still 200) and in the browser.
 - **Default-brief generation fixed (2026-09-08 afternoon), three defects.**
   `9565e01`: `maxDuration = 60` on `POST /api/packs/generate` (platform
   default 10s; a four-round generation takes 20–28s) and the `/create` client

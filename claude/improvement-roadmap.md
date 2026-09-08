@@ -8,10 +8,11 @@ Shipped since this review was written (verified on the production deploy):
 items 1 (per-question timer), 2 (question types — `TEXT` / `MULTIPLE_CHOICE`),
 3 (alternate answers per question), 4 (pack editor can add, delete and
 reorder), 5 (Turso + Upstash, env-var driven), plus the QR join code and JSON
-export/import from the nice-to-haves. The `/packs` list is still unscoped but
-packs now carry a `creatorId` (cookie-identified `Creator`, see
-`monetization-phase2-creator-design.md`), so per-user scoping is a filter
-away. Everything else below is still open. The original text is left intact
+export/import from the nice-to-haves. Pack ownership shipped 2026-09-08
+afternoon (`src/lib/pack-access.ts`): `/packs` lists shared packs plus the
+visitor's own, and every edit route is gated on the `pq_creator` cookie
+matching the pack's `creatorId`; ownerless packs are read-only for all.
+Everything else below is still open. The original text is left intact
 as the record of what the review found.
 
 ## Highest-impact next features

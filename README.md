@@ -145,10 +145,22 @@ a retried request on flaky venue wifi — can't both apply; the loser gets a
   offers no real protection; that's a deployment-topology assumption worth
   confirming before going further than this app's current single-operator
   scale.
+- **Pack ownership** (`src/lib/pack-access.ts`): the same httpOnly
+  `pq_creator` cookie that scopes the free-tier cap also owns packs. `/packs`
+  and `GET /api/packs` list shared packs (no owner — the seeded demo pack)
+  plus the visitor's own; every edit route (`POST /api/questions`,
+  `PATCH`/`DELETE /api/questions/[id]`, `DELETE /api/rounds/[id]`,
+  `POST /api/rounds/[id]/move`) returns 403 unless the cookie matches the
+  pack's `creatorId`. Shared packs are read-only for everyone; Export JSON
+  then Import gives a visitor their own editable copy. Reads by id stay open
+  (unlisted, cuid ids) so sessions, PDF and export keep working for the demo
+  path. Losing the cookie loses edit access — the accepted trade-off of
+  cookie identity over accounts, see `claude/monetization-buildout-plan.md`.
 - **`ADMIN_TOKEN`** (optional, see `.env.example`): if set, `DELETE
-  /api/packs/[id]` requires it via an `x-admin-token` header. Nothing in the
-  UI calls this route today; it exists to be reachable safely once something
-  does. Unset by default for solo local dev.
+  /api/packs/[id]` requires it via an `x-admin-token` header — or the pack's
+  own creator cookie, which may delete that one pack without it. Nothing in
+  the UI calls this route today; it exists to be reachable safely once
+  something does. Unset by default for solo local dev.
 - These are proportionate to this app's actual trust model — one host
   running one venue's quiz for a room of teams — not a multi-tenant SaaS
   auth system. See [PROMPTS.md](./PROMPTS.md) history / commit messages for
