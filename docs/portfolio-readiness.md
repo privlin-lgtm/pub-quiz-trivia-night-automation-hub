@@ -428,3 +428,41 @@ provided titles.
 
 The studio-site gate above is met. Restore the live-demo link on
 yanshufstudio.com and set the Pub Quiz card back to "Live".
+
+## Closed again 2026-09-08 — verified by hand this time
+
+The 504 is fixed. Confirmed the way the reopening asked for, not from a test
+suite and not from a claim:
+
+- Opened `/create` in a real browser.
+- Left the pre-filled four-round default brief exactly as it comes.
+- Clicked **Generate pack**.
+- Result: "Friday Night Lights: Pub Quiz Edition" — 4 rounds, 40 questions, a mix
+  of free-text and multiple-choice, landing in the editor in under 20 seconds.
+  No timeout, no error.
+
+### The free-tier counter is per-visitor, and that matters
+
+Recorded because it looks like a blocker and is not. After two generations the
+browser shows `2/2 free packs used this month` and the form is replaced by:
+
+> Free limit reached — Upgrade to Pro for unlimited packs, coming soon. Use the
+> demo pack instead for now.
+
+At the same moment, a cookie-less client hitting `/api/creator/status` returns
+`{"plan":"FREE","packsGeneratedInPeriod":0,"limit":2}`. So the cap is scoped to
+the visitor, every new arrival gets their own two, and the public demo cannot
+exhaust itself. Anyone testing repeatedly from one browser will hit 2/2 and may
+mistake it for a global limit — it is not.
+
+One cosmetic note for later: "Upgrade to Pro — coming soon" on the paywall is a
+small tell that this is a portfolio piece rather than a running business. Fine
+for now; worth revisiting if the product is ever sold.
+
+### Consequence elsewhere
+
+The live-demo link is back on yanshufstudio.com, tag "Live". It came off and went
+back on twice in one day, and the rule that survived is in the Yanshuf
+`HANDOFF.md`: **restore it only after generating from the wizard's default brief
+succeeds in a browser.** A green test suite is not sufficient evidence, because
+the suite used smaller prompts than the UI itself suggests.
