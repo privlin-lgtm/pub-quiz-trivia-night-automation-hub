@@ -12,8 +12,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "AI-generated pub quiz packs, presenter scripts, and a live team portal.",
     start_url: "/",
     display: "standalone",
-    background_color: "#f2e7d3",
-    theme_color: "#2c3a33",
+    background_color: "#f7ecd6",
+    theme_color: "#121d16",
     icons: [
       { src: "/icon-256.png", sizes: "256x256", type: "image/png", purpose: "any" },
       { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { SiteHeader } from "@/components/SiteHeader";
+import { LiveScoreboardPreview } from "@/components/LiveScoreboardPreview";
 import { ArrowRightIcon } from "@/components/icons";
 import type { SVGProps } from "react";
 
@@ -31,26 +31,26 @@ function PhoneLiveIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-const cards = [
+const steps = [
   {
     href: "/create",
     icon: QuillIcon,
-    title: "Generate a quiz pack",
+    title: "Generate",
     body: "Describe the rounds and topics you want, and let AI build a complete quiz pack.",
     cta: "Open the wizard",
   },
   {
     href: "/packs",
     icon: OpenBookIcon,
-    title: "Manage your packs",
-    body: "Edit rounds and questions, then export presenter scripts and PDF sheets.",
+    title: "Edit & print",
+    body: "Fine-tune rounds and questions, then export presenter scripts and PDF answer sheets.",
     cta: "View packs",
   },
   {
     href: "/play",
     icon: PhoneLiveIcon,
-    title: "Join as a team",
-    body: "On your phone at the venue? Enter the session code the host gives you.",
+    title: "Run it live",
+    body: "On your phone at the venue? Enter the session code the host gives you and start answering.",
     cta: "Join a session",
   },
 ];
@@ -58,39 +58,91 @@ const cards = [
 export default function Home() {
   return (
     <>
-      <SiteHeader />
-      <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-16 sm:py-24">
-        <p className="rule-brass text-sm font-semibold uppercase tracking-[0.2em] text-amber">
-          Trivia night, wired up
-        </p>
-        <h1 className="mt-7 max-w-2xl font-serif text-5xl font-semibold tracking-tight sm:text-6xl">
-          Pub Quiz <em className="text-amber font-medium italic">Automation</em> Hub
-        </h1>
-        <p className="mt-5 max-w-2xl text-lg text-muted">
-          Generate a complete pub quiz pack with AI, print presenter scripts and answer sheets,
-          and run the night live with teams answering from their phones.
-        </p>
+      {/* The homepage opens on its own dark "stage" — the same surface the
+          live host desk and team portal use — with the nav folded into it,
+          rather than the paper-toned SiteHeader every other page shares.
+          That header is the app's admin chrome; this is the one moment
+          meant to feel like the room itself. */}
+      <div className="bg-stage text-stage-fg">
+        <div className="mx-auto w-full max-w-5xl px-5 pt-7">
+          <div className="flex items-center justify-between gap-4">
+            <span className="inline-flex items-center gap-2 font-mono text-xs font-semibold uppercase tracking-[0.14em] text-stage-muted">
+              <QuillIcon className="h-4 w-4 shrink-0" />
+              Pub Quiz Hub
+            </span>
+            <nav className="flex items-center gap-6 text-sm font-medium text-stage-muted">
+              <Link href="/create" className="transition-colors hover:text-gold">Generate</Link>
+              <Link href="/packs" className="transition-colors hover:text-gold">Manage</Link>
+              <Link href="/play" className="transition-colors hover:text-gold">Play</Link>
+            </nav>
+          </div>
 
-        <div className="mt-14 grid gap-4 sm:grid-cols-3">
-          {cards.map((card) => (
-            <Link
-              key={card.href}
-              href={card.href}
-              className="paper-sheet group block rounded-xl border border-line p-6 transition-colors hover:border-amber/50"
-            >
-              <span className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-amber/35 text-amber transition-colors group-hover:border-amber group-hover:bg-amber/8">
-                <card.icon className="h-5 w-5" />
-              </span>
-              <h2 className="mt-4 font-serif text-lg font-semibold">{card.title}</h2>
-              <p className="mt-2 text-sm text-muted">{card.body}</p>
-              <span className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-amber">
-                {card.cta}
+          <main className="pt-16 pb-20 sm:pt-20 sm:pb-24">
+            <p className="chalk-script inline-block -rotate-2 text-2xl leading-none text-gold">
+              Trivia night, wired up
+            </p>
+            <h1 className="mt-3 max-w-xl font-serif text-5xl font-semibold leading-[1.03] tracking-tight text-balance sm:text-6xl">
+              Pub Quiz <em className="font-medium italic text-gold">Automation</em> Hub
+            </h1>
+            <p className="mt-5 max-w-lg text-lg leading-relaxed text-stage-muted">
+              Describe the rounds you want and AI builds the pack. Print the presenter script and
+              answer sheets, then run the night live while every team&apos;s phone lights up with
+              the question.
+            </p>
+
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link
+                href="/create"
+                className="inline-flex h-12 items-center rounded-lg bg-gold px-5 text-sm font-semibold text-stage transition-transform hover:-translate-y-px"
+              >
+                Generate a quiz pack
+              </Link>
+              <Link
+                href="/play"
+                className="group inline-flex h-12 items-center gap-1.5 rounded-lg border border-white/15 px-5 text-sm font-semibold transition-colors hover:border-gold hover:text-gold"
+              >
+                Join as a team
                 <ArrowRightIcon className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
-              </span>
-            </Link>
-          ))}
+              </Link>
+            </div>
+
+            <LiveScoreboardPreview />
+          </main>
         </div>
-      </main>
+      </div>
+
+      {/* Handoff seam: the stage fades to the bright prep-desk below it. */}
+      <div className="h-8 bg-gradient-to-b from-[var(--stage-deep)] to-background sm:h-10" />
+
+      <div className="bg-background text-foreground">
+        <main className="mx-auto w-full max-w-5xl px-5 pb-20 sm:pb-24">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber">The prep desk</p>
+          <h2 className="mt-2 max-w-lg font-serif text-3xl font-semibold tracking-tight sm:text-4xl">
+            Three steps <em className="font-medium italic text-amber">before</em> the room fills up
+          </h2>
+
+          <div className="mt-11 grid gap-5 sm:grid-cols-3">
+            {steps.map((step, i) => (
+              <Link
+                key={step.href}
+                href={step.href}
+                className="paper-sheet group relative block rounded-xl border border-line p-6 pt-8 transition-transform hover:-translate-y-1"
+              >
+                <span className="absolute -top-3 left-6 inline-flex items-center rounded bg-amber px-2 py-1 font-mono text-[0.68rem] font-semibold tracking-wide text-white shadow-sm">
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <step.icon className="h-6 w-6 text-amber" />
+                <h3 className="mt-4 font-serif text-lg font-semibold">{step.title}</h3>
+                <p className="mt-2 text-sm text-muted">{step.body}</p>
+                <span className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-amber">
+                  {step.cta}
+                  <ArrowRightIcon className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
+                </span>
+              </Link>
+            ))}
+          </div>
+        </main>
+      </div>
     </>
   );
 }

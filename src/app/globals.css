@@ -7,18 +7,27 @@
   (bg-amber, text-stage-fg, bg-gold, …) — only the values and a couple of
   textures changed here, so this file is the single place that carries the
   whole visual identity.
+
+  This pass pushes both surfaces further apart instead of toward a shared
+  middle: the desk stays warm and bright (a true worktable, not a muted
+  beige), the stage goes properly dark (a lit chalkboard in a dim room, not
+  a soft slate). --amber stays deliberately restrained (it still carries
+  white button text at AA contrast) — the brightness budget instead goes to
+  --gold, which only ever sits on the dark stage and pairs with dark text,
+  so it can run as hot as the room's actual spotlight would.
 */
 :root {
-  --background: #f2e7d3;
-  --foreground: #26190e;
-  --muted: #6e5a42;
-  --line: #dcc9a6;
-  --amber: #9c5a18;
-  --amber-hover: #713f0e;
-  --stage: #2c3a33;
-  --stage-fg: #f6f1e4;
-  --stage-muted: #a9bcae;
-  --gold: #e2aa3e;
+  --background: #f7ecd6;
+  --foreground: #221609;
+  --muted: #6b5842;
+  --line: #ddc79c;
+  --amber: #a35a12;
+  --amber-hover: #7a4009;
+  --stage: #121d16;
+  --stage-deep: #0b120d;
+  --stage-fg: #f5efe1;
+  --stage-muted: #9fb6a4;
+  --gold: #f0c04d;
 
   --radius-xl: 0.65rem;
   --radius-2xl: 0.9rem;
@@ -39,12 +48,20 @@
   --font-sans: var(--font-body), Arial, Helvetica, sans-serif;
   --font-serif: var(--font-display), Georgia, serif;
   --font-mono: var(--font-mono-plex), ui-monospace, monospace;
+  /* A genuine hand-chalk marker face — used only for short scrawled
+     accents (an eyebrow label, a doodled aside) on the stage, never for
+     body copy or anything that has to be read quickly. */
+  --font-script: var(--font-chalk), cursive;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+}
+
+.chalk-script {
+  font-family: var(--font-script);
 }
 
 /* A short brass double-rule — the one signature mark repeated wherever a
@@ -75,45 +92,49 @@ body {
 /* Paper card: warm white with a faint fiber grain, not a flat swatch. */
 .paper-sheet {
   background:
-    radial-gradient(circle at 1px 1px, rgba(38, 25, 14, 0.05) 1px, transparent 0) 0 0/14px 14px,
+    radial-gradient(circle at 1px 1px, rgba(34, 22, 9, 0.055) 1px, transparent 0) 0 0/14px 14px,
     #fffaf0;
   box-shadow:
-    0 1px 0 rgba(38, 25, 14, 0.07),
-    0 18px 40px rgba(38, 25, 14, 0.1);
+    0 1px 0 rgba(34, 22, 9, 0.08),
+    0 20px 45px rgba(34, 22, 9, 0.12);
 }
 
 /* Chalkboard surfaces: every existing `bg-stage` usage picks this up for
-   free (same Tailwind class, extended here) — a faint chalk-dust grain plus
-   a soft top vignette instead of a flat near-black. */
+   free (same Tailwind class, extended here) — a felt-dark ground with a
+   dust grain and a spotlight vignette (a warm glow overhead, fading to
+   --stage-deep at the edges) instead of a flat panel color. This is the
+   one class that carries the "live room" mood everywhere it's used: the
+   homepage hero, the host desk, the team portal. */
 .bg-stage {
   background-color: var(--stage);
   background-image:
-    radial-gradient(circle at 1px 1px, rgba(241, 233, 216, 0.05) 1px, transparent 0),
-    radial-gradient(ellipse 90% 60% at 50% -10%, rgba(226, 170, 62, 0.08), transparent 60%);
-  background-size: 16px 16px, 100% 100%;
-  background-repeat: repeat, no-repeat;
+    radial-gradient(circle at 1px 1px, rgba(245, 239, 225, 0.045) 1px, transparent 0),
+    radial-gradient(ellipse 75% 50% at 50% -5%, rgba(240, 192, 77, 0.14), transparent 62%),
+    linear-gradient(180deg, var(--stage) 0%, var(--stage-deep) 100%);
+  background-size: 16px 16px, 100% 100%, 100% 100%;
+  background-repeat: repeat, no-repeat, no-repeat;
 }
 
-/* Panels/badges/hairlines on the chalkboard were sized as translucent white
-   overlays (bg-white/5, /10, /15, border-white/10, /15) tuned against the
-   old near-black stage — against the lighter stage above they read as
-   almost no contrast at all. Same classes, raised and warmed so a panel
-   actually reads as a panel. */
+/* Panels/badges/hairlines on the chalkboard were sized as translucent
+   chalk-white overlays (bg-white/5, /10, /15, border-white/10, /15) — kept
+   as the same classes so every dark-mode component still reaches for them,
+   just tuned against the deeper stage above so a panel reads as a raised
+   panel, not a smudge. */
 .bg-white\/5 {
-  background-color: rgba(246, 241, 228, 0.1);
-  border: 1px solid rgba(246, 241, 228, 0.12);
+  background-color: rgba(245, 239, 225, 0.07);
+  border: 1px solid rgba(245, 239, 225, 0.09);
 }
 .bg-white\/10 {
-  background-color: rgba(246, 241, 228, 0.16);
+  background-color: rgba(245, 239, 225, 0.12);
 }
 .bg-white\/15 {
-  background-color: rgba(246, 241, 228, 0.22);
+  background-color: rgba(245, 239, 225, 0.18);
 }
 .border-white\/10 {
-  border-color: rgba(246, 241, 228, 0.2);
+  border-color: rgba(245, 239, 225, 0.16);
 }
 .border-white\/15 {
-  border-color: rgba(246, 241, 228, 0.28);
+  border-color: rgba(245, 239, 225, 0.22);
 }
 
 /* Quiet reveal for the end-of-quiz moment — the one place a small
@@ -133,6 +154,56 @@ body {
 }
 @media (prefers-reduced-motion: reduce) {
   .animate-reveal {
+    animation: none;
+  }
+}
+
+/* Flip-scoreboard digit — the homepage hero's signature element, styled
+   after an airport departure board / pub quiz tally board. Each digit is a
+   two-sided tile; the flipper rotates a half-turn on a loop, staggered per
+   tile via an inline animation-delay so the board reads as "live" rather
+   than everything flipping in unison. Purely decorative (a marketing
+   preview of the real live scoreboard), so it always rests on a legible
+   digit even with the animation frozen. */
+.flip-tile {
+  position: relative;
+  width: 1.6rem;
+  height: 2.15rem;
+  perspective: 220px;
+}
+.flip-tile .flipper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  animation: flip-digit 7s cubic-bezier(0.6, 0, 0.4, 1) infinite;
+  animation-delay: var(--flip-delay, 0s);
+}
+.flip-tile .face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #1a2820;
+  border: 1px solid rgba(245, 239, 225, 0.12);
+  border-radius: 0.2rem;
+  backface-visibility: hidden;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 1.05rem;
+  color: var(--gold);
+}
+.flip-tile .face.back {
+  transform: rotateX(180deg);
+}
+@keyframes flip-digit {
+  0%, 42% { transform: rotateX(0deg); }
+  50%, 92% { transform: rotateX(180deg); }
+  100% { transform: rotateX(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .flip-tile .flipper {
     animation: none;
   }
 }

@@ -24,7 +24,7 @@ export function PrintPreview({ pack }: { pack: Pack }) {
   const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("script");
 
   return (
-    <div className="min-h-full bg-[#e8dfcf] pb-16">
+    <div className="min-h-full bg-[#ecdfbc] pb-16">
       <div className="print-chrome mx-auto flex w-full max-w-3xl flex-wrap items-center justify-between gap-3 px-5 py-5">
         <div>
           <Link
@@ -80,7 +80,7 @@ export function PrintPreview({ pack }: { pack: Pack }) {
 
 function Cue({ children }: { children: React.ReactNode }) {
   return (
-    <p className="my-3 rounded-md border border-dashed border-line bg-[#f7f1e6] px-3 py-2 text-sm italic text-muted">
+    <p className="my-3 rounded-md border border-dashed border-line bg-[#fbf3dc] px-3 py-2 text-sm italic text-muted">
       {children}
     </p>
   );
