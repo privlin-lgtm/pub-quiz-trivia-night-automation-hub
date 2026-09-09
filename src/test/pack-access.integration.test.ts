@@ -258,6 +258,50 @@ describe("pack ownership gate", () => {
     });
   });
 
+  describe("DELETE /api/packs/[id] with ADMIN_TOKEN unset", () => {
+    // The exact scenario the ownership check must survive: no operator
+    // secret configured at all (e.g. forgotten before a deploy), which
+    // isAuthorizedAdmin alone treats as "every request is admin". This
+    // pins that the route does not fall back to that default — see
+    // isAdminTokenConfigured in src/lib/admin-auth.ts.
+    beforeEach(() => vi.stubEnv("ADMIN_TOKEN", ""));
+    afterEach(() => vi.unstubAllEnvs());
+
+    it("401s a stranger with no cookie and no admin header, and the pack survives", async () => {
+      const owner = await newCreator();
+      const pack = await ownedPack(owner.id);
+      const res = await deletePack(request(`${BASE}/api/packs/${pack.id}`, "DELETE"), params(pack.id));
+      expect(res.status).toBe(401);
+      expect(await db.quizPack.findUnique({ where: { id: pack.id } })).not.toBeNull();
+    });
+
+    it("401s a stranger who guesses at the x-admin-token header", async () => {
+      const owner = await newCreator();
+      const pack = await ownedPack(owner.id);
+      const res = await deletePack(
+        request(`${BASE}/api/packs/${pack.id}`, "DELETE", { headers: { "x-admin-token": "anything" } }),
+        params(pack.id)
+      );
+      expect(res.status).toBe(401);
+      expect(await db.quizPack.findUnique({ where: { id: pack.id } })).not.toBeNull();
+    });
+
+    it("401s on an ownerless pack even though it has no owner to protect it", async () => {
+      const pack = await ownedPack(null);
+      const res = await deletePack(request(`${BASE}/api/packs/${pack.id}`, "DELETE"), params(pack.id));
+      expect(res.status).toBe(401);
+      expect(await db.quizPack.findUnique({ where: { id: pack.id } })).not.toBeNull();
+    });
+
+    it("still lets the owner delete their own pack", async () => {
+      const owner = await newCreator();
+      const pack = await ownedPack(owner.id);
+      const res = await deletePack(request(`${BASE}/api/packs/${pack.id}`, "DELETE", { cookie: owner.cookie }), params(pack.id));
+      expect(res.status).toBe(200);
+      expect(await db.quizPack.findUnique({ where: { id: pack.id } })).toBeNull();
+    });
+  });
+
   describe("GET /api/packs", () => {
     it("lists ownerless packs and the caller's own packs, never another creator's", async () => {
       const me = await newCreator();

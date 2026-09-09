@@ -21,3 +21,13 @@ export function isAuthorizedAdmin(req: NextRequest): boolean {
   if (expected.length !== actual.length) return false;
   return timingSafeEqual(expected, actual);
 }
+
+/**
+ * Whether an admin override is even possible right now. A caller that wants
+ * to treat "no ADMIN_TOKEN configured" as "no admin override, fall back to
+ * ownership" — rather than isAuthorizedAdmin's own "unset means everyone is
+ * admin" — should gate on this first. See its use in the pack DELETE route.
+ */
+export function isAdminTokenConfigured(): boolean {
+  return Boolean(process.env.ADMIN_TOKEN);
+}

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { NextRequest } from "next/server";
-import { isAuthorizedAdmin } from "@/lib/admin-auth";
+import { isAdminTokenConfigured, isAuthorizedAdmin } from "@/lib/admin-auth";
 
 function requestWith(token: string | null) {
   return new NextRequest("http://localhost/api/x", {
@@ -42,5 +42,24 @@ describe("isAuthorizedAdmin", () => {
     it("accepts the exact configured token", () => {
       expect(isAuthorizedAdmin(requestWith("correct-horse-battery-staple"))).toBe(true);
     });
+  });
+});
+
+describe("isAdminTokenConfigured", () => {
+  const originalToken = process.env.ADMIN_TOKEN;
+
+  afterEach(() => {
+    if (originalToken === undefined) delete process.env.ADMIN_TOKEN;
+    else process.env.ADMIN_TOKEN = originalToken;
+  });
+
+  it("is false when ADMIN_TOKEN is unset", () => {
+    delete process.env.ADMIN_TOKEN;
+    expect(isAdminTokenConfigured()).toBe(false);
+  });
+
+  it("is true once ADMIN_TOKEN is set, regardless of the request", () => {
+    process.env.ADMIN_TOKEN = "correct-horse-battery-staple";
+    expect(isAdminTokenConfigured()).toBe(true);
   });
 });
