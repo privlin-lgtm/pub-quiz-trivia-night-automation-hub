@@ -83,6 +83,22 @@ function OptionsLine({ question }: { question: PdfQuestion }) {
   return <Text style={styles.optionsLine}>{options.map((o, i) => `${String.fromCharCode(65 + i)}) ${o}`).join("   ")}</Text>;
 }
 
+/**
+ * Page-break policy, shared by all three documents below: a round flows
+ * across pages when it has to, no single question is ever split down the
+ * middle (`wrap={false}` on the question or row, never on the round), and a
+ * round heading is never left stranded at the foot of a page with nothing
+ * under it (`minPresenceAhead`, roughly a heading plus its first question).
+ *
+ * Rounds used to carry `wrap={false}` themselves, to keep each one on one
+ * page. That holds for a five-question round and silently fails for a ten-
+ * question one — which is exactly what the wizard's own default brief
+ * produces. react-pdf can't shrink a block that is taller than the page, so
+ * it logged "Node of type VIEW can't wrap between pages and it's bigger
+ * than available page height" and ran the round off the bottom of the sheet,
+ * taking the last questions of every round with it. A quizmaster printing
+ * that walks into the room with an incomplete pack.
+ */
 export function QuestionSheetDocument({ pack }: { pack: PackWithRounds }) {
   return (
     <Document title={`${pack.title} - Questions`}>
@@ -90,13 +106,13 @@ export function QuestionSheetDocument({ pack }: { pack: PackWithRounds }) {
         <Header pack={pack} kicker="Team question sheet" />
         <Text style={styles.teamLine}>Team name: _______________________________</Text>
         {pack.rounds.map((round) => (
-          <View key={round.id} wrap={false}>
+          <View key={round.id} minPresenceAhead={90}>
             <Text style={styles.roundHeading}>
               Round {round.index + 1}: {round.title}
             </Text>
             <Text style={styles.roundCategory}>{round.category}</Text>
             {round.questions.map((q) => (
-              <View key={q.id}>
+              <View key={q.id} wrap={false}>
                 <View style={styles.questionRow}>
                   <Text style={styles.questionNumber}>{q.index + 1}.</Text>
                   <Text style={styles.questionText}>{q.text}</Text>
@@ -120,7 +136,7 @@ export function AnswerSheetDocument({ pack }: { pack: PackWithRounds }) {
       <Page size="A4" style={styles.page} wrap>
         <Header pack={pack} kicker="Host answer key" />
         {pack.rounds.map((round) => (
-          <View key={round.id} wrap={false}>
+          <View key={round.id} minPresenceAhead={90}>
             <Text style={styles.roundHeading}>
               Round {round.index + 1}: {round.title}
             </Text>
@@ -132,7 +148,7 @@ export function AnswerSheetDocument({ pack }: { pack: PackWithRounds }) {
               <Text style={styles.points}>Pts</Text>
             </View>
             {round.questions.map((q) => (
-              <View key={q.id} style={styles.tableRow}>
+              <View key={q.id} style={styles.tableRow} wrap={false}>
                 <Text style={styles.colNum}>{q.index + 1}</Text>
                 <Text style={styles.colQuestion}>{q.text}</Text>
                 <Text style={styles.colAnswer}>{q.answer}</Text>
@@ -156,7 +172,7 @@ export function PresenterScriptDocument({ pack }: { pack: PackWithRounds }) {
           [Welcome everyone, introduce tonight’s quiz, and remind teams how scoring works.]
         </Text>
         {pack.rounds.map((round) => (
-          <View key={round.id} wrap={false}>
+          <View key={round.id} minPresenceAhead={90}>
             <Text style={styles.roundHeading}>
               Round {round.index + 1}: {round.title}
             </Text>
@@ -165,7 +181,7 @@ export function PresenterScriptDocument({ pack }: { pack: PackWithRounds }) {
               [Announce the round title and category. Give teams a moment to ready their sheets.]
             </Text>
             {round.questions.map((q) => (
-              <View key={q.id} style={{ marginBottom: 6 }}>
+              <View key={q.id} style={{ marginBottom: 6 }} wrap={false}>
                 <View style={styles.questionRow}>
                   <Text style={styles.questionNumber}>{q.index + 1}.</Text>
                   <Text style={styles.questionText}>{q.text}</Text>
