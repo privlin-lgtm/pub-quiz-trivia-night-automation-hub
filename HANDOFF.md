@@ -3,6 +3,52 @@
 Live: https://pub-quiz-trivia-night-automation-hu.vercel.app
 Repo: https://github.com/privlin-lgtm/pub-quiz-trivia-night-automation-hub (branch `master`, Vercel deploys on push)
 
+## Update — 2026-09-10: PR #3 is open and green
+
+Everything below this section predates it and describes `master` at
+`beca9aa`; `master` has since moved to `d1b613d` (the visual redesign and
+the Paddle plan docs). Read this first.
+
+`claude/youthful-knuth-clvns7` → PR #3, seven commits, CI green on
+`f342325`, **not merged**. A second full production-readiness walk. Full
+write-up in `docs/portfolio-readiness.md`, "Production-readiness pass,
+2026-09-10". In short:
+
+- **The 502's fourth and last cause.** One `try/catch` in the generate
+  route was flattening four different failures into the same "Please try
+  again" 502, which is why `101a4c7` and `4e0ee66` each fixed a real cause
+  without ending the bug. The undiagnosed one: `max_tokens` was 8000, so
+  any brief bigger than the default (e.g. "eight rounds of fifteen
+  questions") truncated the tool call *deterministically* and strict
+  validation binned the whole pack. Now: 16000 tokens, partial packs are
+  salvaged question by question, and what can't be salvaged returns 422 /
+  503 / 502 by cause instead of one blanket 502.
+- **Auth.** Pack delete was already closed (`5eb1eba`/`c0f23d2`) — verified,
+  not assumed. But `isAuthorizedAdmin` was fail-open with `ADMIN_TOKEN`
+  unset (safe only because its one caller was careful), and
+  `POST /api/sessions` and `POST /api/sessions/[code]/join` had no ceiling
+  at all — 60 junk teams into a live quiz from one loop, from anyone who
+  can see the table QR. All three closed.
+- **Three regressions nobody had flagged**: the app serves no `theme-color`
+  meta tag (`be4967e` deleted the `viewport` export, and `e2e/pwa.spec.ts`
+  has been red on `master` ever since — that commit shipped without the e2e
+  suite being run); every PDF render of a full-size pack overflows its
+  rounds off the page; and `npm run db:seed` has crashed on every run since
+  the libSQL migration.
+
+**Before merging.** None of it was verified on production or against the
+live model — that session had no `ANTHROPIC_API_KEY` and its network policy
+blocked the Vercel hostname, so generation ran against a local stand-in.
+PR #3 has a Vercel preview with real env vars. Generate there from the
+default brief **and** from a deliberately oversized one, in a browser. The
+oversized case is the one this work targets and the one that has never been
+tested. A green suite is not evidence here; it has been twice before and
+the bug reopened both times.
+
+**Note for the open item below.** `e2e/tie-ending.spec.ts` exceeding its
+timeout "every run" did not reproduce: 7.1s locally, and green in CI.
+Whatever caused it was specific to that machine.
+
 ## Where things stand
 
 Local `master` is in sync with `origin/master` at `beca9aa`. Production runs
