@@ -26,13 +26,11 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   // own creator may delete it. Both fail with the same 401 so a probe can't
   // tell an unowned id from a wrong token.
   //
-  // isAuthorizedAdmin alone is not enough to gate on here: with no
-  // ADMIN_TOKEN configured it returns true for *any* request (that's the
-  // right default for a solo local-dev checkout with nothing to protect
-  // against), which would skip the ownership check below entirely and let
-  // anyone delete anyone's pack the moment this is deployed without the
-  // token set. isAdminTokenConfigured() makes the override opt-in: no token
-  // configured means no admin bypass, full stop, and ownership decides.
+  // isAuthorizedAdmin fails closed when ADMIN_TOKEN is unset (see its
+  // comment), so there is no configuration of this deployment in which the
+  // ownership check below is skipped. isAdminTokenConfigured() is kept in
+  // front of it to state that intent at the call site rather than leaving it
+  // to be re-derived from the helper.
   const adminOverride = isAdminTokenConfigured() && isAuthorizedAdmin(req);
   if (!adminOverride) {
     const [ownership, creatorId] = await Promise.all([packOwnership({ packId: id }), creatorIdFromRequest(req)]);
